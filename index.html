@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PolyLightMix – Interactive 3D WebGL Relight & Compositor | Polygon Manufaktur</title>
-  <meta name="description" content="Kostenloses interaktives WebGL 3D-Relight & Compositing Tool für Architekten & 3D-Artists. Entwickelt von Polygon Manufaktur.">
-  <link rel="canonical" href="https://polygonmanufaktur.github.io/PolyLightMix/">
-  
+  <meta name="description" content="Free interactive WebGL 3D Relight & Post-FX Compositing Tool for architects and 3D artists. Real-time linear light mixing, Kelvin tuning, and Z-depth DoF by Polygon Manufaktur.">
+  <link rel="canonical" href="https://www.polygonmanufaktur.de/polylightmix/">
+
   <style>
     :root {
       --bg-dark: #0b0d11;
@@ -107,8 +107,9 @@
     .workspace {
       display: flex;
       flex: 1;
-      height: calc(100vh - 56px);
+      height: calc(100vh - 84px);
       position: relative;
+      overflow: hidden;
     }
 
     /* Viewport / Canvas */
@@ -120,15 +121,16 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      padding: 12px;
     }
     canvas {
-      max-width: 100%;
-      max-height: 100%;
+      display: block;
       box-shadow: 0 10px 40px rgba(0,0,0,0.8);
       cursor: crosshair;
+      border-radius: 4px;
     }
     .focus-reticle {
-      position: absolute;
+      position: fixed;
       width: 28px;
       height: 28px;
       border: 2px solid var(--accent);
@@ -136,7 +138,8 @@
       transform: translate(-50%, -50%);
       pointer-events: none;
       display: none;
-      animation: pulse 1.2s infinite;
+      z-index: 20;
+      animation: pulse 1.1s ease-out forwards;
     }
     .focus-reticle::after {
       content: "";
@@ -148,15 +151,15 @@
       border-radius: 50%;
     }
     @keyframes pulse {
-      0% { transform: translate(-50%, -50%) scale(0.9); opacity: 1; }
-      100% { transform: translate(-50%, -50%) scale(1.4); opacity: 0; }
+      0% { transform: translate(-50%, -50%) scale(0.7); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
     }
 
     .demo-banner {
       position: absolute;
-      top: 14px;
-      left: 14px;
-      background: rgba(19, 23, 31, 0.85);
+      top: 16px;
+      left: 16px;
+      background: rgba(19, 23, 31, 0.88);
       backdrop-filter: blur(8px);
       border: 1px solid var(--border);
       padding: 6px 12px;
@@ -174,13 +177,13 @@
       width: 8px; height: 8px;
       background: var(--accent);
       border-radius: 50%;
-      animation: blink 1s infinite alternate;
+      animation: blink 0.8s infinite alternate;
     }
-    @keyframes blink { from { opacity: 0.3; } to { opacity: 1; } }
+    @keyframes blink { from { opacity: 0.25; } to { opacity: 1; } }
 
     /* Control Sidebar */
     .sidebar {
-      width: 380px;
+      width: 410px;
       background: var(--bg-panel);
       border-left: 1px solid var(--border);
       display: flex;
@@ -192,6 +195,9 @@
       display: flex;
       border-bottom: 1px solid var(--border);
       background: var(--bg-dark);
+      position: sticky;
+      top: 0;
+      z-index: 5;
     }
     .tab-btn {
       flex: 1;
@@ -211,26 +217,68 @@
       background: var(--bg-panel);
     }
     .tab-content {
-      padding: 16px;
+      padding: 14px;
       display: none;
       flex-direction: column;
-      gap: 16px;
+      gap: 12px;
     }
     .tab-content.active { display: flex; }
 
-    /* Light Channel Cards */
+    /* Light Channel Cards with Left Thumbnail */
     .channel-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 12px;
+      padding: 10px;
       display: flex;
-      flex-direction: column;
-      gap: 10px;
-      transition: border-color 0.15s;
+      gap: 12px;
+      align-items: center;
+      transition: border-color 0.15s, opacity 0.15s;
     }
     .channel-card:hover { border-color: #3b4764; }
-    .channel-card.disabled { opacity: 0.4; }
+    .channel-card.dimmed { opacity: 0.45; }
+
+    .channel-thumb-wrap {
+      width: 64px;
+      height: 64px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #07080a;
+      flex-shrink: 0;
+      position: relative;
+      cursor: pointer;
+    }
+    .channel-thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .channel-thumb-wrap::after {
+      content: "SOLO";
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      color: #eab308;
+      font-size: 9px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .channel-thumb-wrap:hover::after { opacity: 1; }
+
+    .channel-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      min-width: 0;
+    }
+
     .channel-header {
       display: flex;
       align-items: center;
@@ -241,7 +289,7 @@
       font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
     }
     .channel-icon {
       width: 8px;
@@ -263,8 +311,9 @@
       font-size: 10px;
       font-weight: 700;
       cursor: pointer;
+      transition: all 0.1s;
     }
-    .mini-btn:hover { color: var(--text-main); }
+    .mini-btn:hover { color: var(--text-main); border-color: #475569; }
     .mini-btn.active-solo { background: #eab308; color: #000; border-color: #eab308; }
     .mini-btn.active-mute { background: #ef4444; color: #fff; border-color: #ef4444; }
 
@@ -272,27 +321,51 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 6px;
     }
     .control-label {
       font-size: 11px;
       color: var(--text-muted);
-      min-width: 65px;
+      min-width: 52px;
     }
     .slider {
       flex: 1;
       accent-color: var(--accent);
       height: 5px;
       cursor: pointer;
+      min-width: 0;
     }
     .value-tag {
       font-size: 11px;
       font-family: monospace;
       color: var(--text-main);
-      min-width: 42px;
+      min-width: 40px;
       text-align: right;
     }
+    .reset-single-btn {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 4px;
+      width: 20px;
+      height: 20px;
+      font-size: 11px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.12s;
+    }
+    .reset-single-btn:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: #2a3246;
+    }
+
     .select-input {
+      flex: 1;
       background: var(--bg-input);
       border: 1px solid var(--border);
       color: var(--text-main);
@@ -310,7 +383,7 @@
       padding: 12px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
     .fx-title {
       font-size: 12px;
@@ -332,12 +405,14 @@
       border: 1px solid var(--border);
       color: var(--text-muted);
       border-radius: 6px;
-      padding: 8px;
+      padding: 9px;
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
       text-align: center;
+      transition: all 0.12s;
     }
+    .diag-btn:hover { color: var(--text-main); }
     .diag-btn.active {
       background: var(--accent-blue);
       border-color: var(--accent-blue);
@@ -350,6 +425,7 @@
       background: var(--bg-dark);
       border-top: 1px solid var(--border);
       padding: 6px 16px;
+      height: 28px;
       font-size: 11px;
       color: var(--text-muted);
       display: flex;
@@ -368,7 +444,7 @@
 
   <!-- Header -->
   <header>
-    <a href="https://www.polygonmanufaktur.de" target="_blank" class="brand" title="Polygon Manufaktur 3D Visualisierung Hamburg">
+    <a href="https://www.polygonmanufaktur.de" target="_blank" rel="noopener" class="brand" title="Polygon Manufaktur – 3D Visualization Studio">
       <span class="logo-badge">3D RELIGHT</span>
       <div>
         <span class="brand-title">PolyLightMix</span>
@@ -380,7 +456,7 @@
       <button class="btn" id="btnAutopilot" onclick="toggleAutopilot()">
         <span class="pulse-dot"></span> Showroom Autopilot
       </button>
-      <button class="btn btn-accent" onclick="resetAll()">Reset</button>
+      <button class="btn btn-accent" onclick="resetAll()" title="Reset all channels and effects to default">Reset All</button>
     </div>
   </header>
 
@@ -391,136 +467,169 @@
       <canvas id="glCanvas"></canvas>
       <div class="focus-reticle" id="reticle"></div>
       <div class="demo-banner" id="bannerDemo" style="display: none;">
-        <span class="pulse-dot"></span> Autopilot aktiv – Klicke ins Bild oder verändere Slider zum Übernehmen
+        <span class="pulse-dot"></span> Showroom Autopilot Active – Click viewport or adjust any slider to take manual control
       </div>
     </div>
 
     <!-- Sidebar Controls -->
     <div class="sidebar">
       <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('lights')">Lichtquellen</button>
-        <button class="tab-btn" onclick="switchTab('dof')">DoF & FX</button>
-        <button class="tab-btn" onclick="switchTab('inspector')">Pass Inspector</button>
+        <button class="tab-btn active" onclick="switchTab('lights', this)">Light Sources</button>
+        <button class="tab-btn" onclick="switchTab('dof', this)">DoF & Post-FX</button>
+        <button class="tab-btn" onclick="switchTab('inspector', this)">Pass Inspector</button>
       </div>
 
-      <!-- Tab 1: Lichtquellen -->
+      <!-- Tab 1: Light Sources -->
       <div class="tab-content active" id="tab-lights">
-        <!-- 1. Front Light -->
-        <div class="channel-card" id="card-front">
-          <div class="channel-header">
-            <span class="channel-title"><span class="channel-icon" style="background:#38bdf8;"></span>Front Light</span>
-            <div class="channel-btns">
-              <button class="mini-btn" onclick="toggleSolo(0)">S</button>
-              <button class="mini-btn" onclick="toggleMute(0)">M</button>
+
+        <!-- 0: Front Light -->
+        <div class="channel-card" id="card-0">
+          <div class="channel-thumb-wrap" onclick="toggleSolo(0)" title="Click thumbnail to Solo channel">
+            <img src="demo/demo_Front.webp" alt="Front Light Pass">
+          </div>
+          <div class="channel-body">
+            <div class="channel-header">
+              <span class="channel-title"><span class="channel-icon" style="background:#38bdf8;"></span>Front Light</span>
+              <div class="channel-btns">
+                <button class="mini-btn" id="btn-solo-0" onclick="toggleSolo(0)" title="Solo Channel">S</button>
+                <button class="mini-btn" id="btn-mute-0" onclick="toggleMute(0)" title="Mute Channel">M</button>
+              </div>
             </div>
-          </div>
-          <div class="control-row">
-            <span class="control-label">Power</span>
-            <input type="range" class="slider" min="0" max="250" value="100" oninput="updateIntensity(0, this.value)">
-            <span class="value-tag" id="val-int-0">100%</span>
-          </div>
-          <div class="control-row">
-            <span class="control-label">Farbe</span>
-            <select class="select-input" onchange="updateKelvin(0, this.value)">
-              <option value="6500">6500K (Tageslicht)</option>
-              <option value="4500">4500K (Neutralweiß)</option>
-              <option value="3000">3000K (Warmton)</option>
-              <option value="2200">2200K (Kerze/Gold)</option>
-              <option value="8500">8500K (Kaltes Sky)</option>
-            </select>
+            <div class="control-row">
+              <span class="control-label">Intensity</span>
+              <input type="range" class="slider" id="slider-int-0" min="0" max="250" value="100" oninput="updateIntensity(0, this.value)">
+              <span class="value-tag" id="val-int-0">100%</span>
+              <button class="reset-single-btn" onclick="resetSingleLight(0)" title="Reset to 100%">↺</button>
+            </div>
+            <div class="control-row">
+              <span class="control-label">Kelvin</span>
+              <select class="select-input" id="select-kelvin-0" onchange="updateKelvin(0, this.value)">
+                <option value="6500" selected>6500K (Neutral / Original)</option>
+                <option value="5000">5000K (Horizon Daylight)</option>
+                <option value="3500">3500K (Warm Halogen)</option>
+                <option value="2400">2400K (Candle / Amber)</option>
+                <option value="8500">8500K (Cool Overcast Sky)</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <!-- 2. Left Light -->
-        <div class="channel-card" id="card-left">
-          <div class="channel-header">
-            <span class="channel-title"><span class="channel-icon" style="background:#fbbf24;"></span>Left Light</span>
-            <div class="channel-btns">
-              <button class="mini-btn" onclick="toggleSolo(1)">S</button>
-              <button class="mini-btn" onclick="toggleMute(1)">M</button>
+        <!-- 1: Left Light -->
+        <div class="channel-card" id="card-1">
+          <div class="channel-thumb-wrap" onclick="toggleSolo(1)" title="Click thumbnail to Solo channel">
+            <img src="demo/demo_Left.webp" alt="Left Light Pass">
+          </div>
+          <div class="channel-body">
+            <div class="channel-header">
+              <span class="channel-title"><span class="channel-icon" style="background:#fbbf24;"></span>Left Light</span>
+              <div class="channel-btns">
+                <button class="mini-btn" id="btn-solo-1" onclick="toggleSolo(1)" title="Solo Channel">S</button>
+                <button class="mini-btn" id="btn-mute-1" onclick="toggleMute(1)" title="Mute Channel">M</button>
+              </div>
             </div>
-          </div>
-          <div class="control-row">
-            <span class="control-label">Power</span>
-            <input type="range" class="slider" min="0" max="250" value="80" oninput="updateIntensity(1, this.value)">
-            <span class="value-tag" id="val-int-1">80%</span>
-          </div>
-          <div class="control-row">
-            <span class="control-label">Farbe</span>
-            <select class="select-input" onchange="updateKelvin(1, this.value)">
-              <option value="5500">5500K (Sonne)</option>
-              <option value="3200" selected>3200K (Warmweiß)</option>
-              <option value="2000">2000K (Glühfaden)</option>
-              <option value="7500">7500K (Sky)</option>
-            </select>
+            <div class="control-row">
+              <span class="control-label">Intensity</span>
+              <input type="range" class="slider" id="slider-int-1" min="0" max="250" value="100" oninput="updateIntensity(1, this.value)">
+              <span class="value-tag" id="val-int-1">100%</span>
+              <button class="reset-single-btn" onclick="resetSingleLight(1)" title="Reset to 100%">↺</button>
+            </div>
+            <div class="control-row">
+              <span class="control-label">Kelvin</span>
+              <select class="select-input" id="select-kelvin-1" onchange="updateKelvin(1, this.value)">
+                <option value="6500" selected>6500K (Neutral / Original)</option>
+                <option value="5000">5000K (Direct Sun)</option>
+                <option value="3200">3200K (Warm Tungsten)</option>
+                <option value="2000">2000K (Golden Sunset)</option>
+                <option value="8000">8000K (Arctic Blue)</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <!-- 3. Right Light -->
-        <div class="channel-card" id="card-right">
-          <div class="channel-header">
-            <span class="channel-title"><span class="channel-icon" style="background:#f472b6;"></span>Right Light</span>
-            <div class="channel-btns">
-              <button class="mini-btn" onclick="toggleSolo(2)">S</button>
-              <button class="mini-btn" onclick="toggleMute(2)">M</button>
+        <!-- 2: Right Light -->
+        <div class="channel-card" id="card-2">
+          <div class="channel-thumb-wrap" onclick="toggleSolo(2)" title="Click thumbnail to Solo channel">
+            <img src="demo/demo_Right.webp" alt="Right Light Pass">
+          </div>
+          <div class="channel-body">
+            <div class="channel-header">
+              <span class="channel-title"><span class="channel-icon" style="background:#f472b6;"></span>Right Light</span>
+              <div class="channel-btns">
+                <button class="mini-btn" id="btn-solo-2" onclick="toggleSolo(2)" title="Solo Channel">S</button>
+                <button class="mini-btn" id="btn-mute-2" onclick="toggleMute(2)" title="Mute Channel">M</button>
+              </div>
             </div>
-          </div>
-          <div class="control-row">
-            <span class="control-label">Power</span>
-            <input type="range" class="slider" min="0" max="250" value="60" oninput="updateIntensity(2, this.value)">
-            <span class="value-tag" id="val-int-2">60%</span>
-          </div>
-          <div class="control-row">
-            <span class="control-label">Farbe</span>
-            <select class="select-input" onchange="updateKelvin(2, this.value)">
-              <option value="4500" selected>4500K (Studio)</option>
-              <option value="3000">3000K (Warm)</option>
-              <option value="6500">6500K (Daylight)</option>
-              <option value="9000">9000K (Deep Blue)</option>
-            </select>
+            <div class="control-row">
+              <span class="control-label">Intensity</span>
+              <input type="range" class="slider" id="slider-int-2" min="0" max="250" value="100" oninput="updateIntensity(2, this.value)">
+              <span class="value-tag" id="val-int-2">100%</span>
+              <button class="reset-single-btn" onclick="resetSingleLight(2)" title="Reset to 100%">↺</button>
+            </div>
+            <div class="control-row">
+              <span class="control-label">Kelvin</span>
+              <select class="select-input" id="select-kelvin-2" onchange="updateKelvin(2, this.value)">
+                <option value="6500" selected>6500K (Neutral / Original)</option>
+                <option value="4500">4500K (Studio Fill)</option>
+                <option value="3000">3000K (Warm Accent)</option>
+                <option value="9000">9000K (Blue Hour Fill)</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <!-- 4. Lamp -->
-        <div class="channel-card" id="card-lamp">
-          <div class="channel-header">
-            <span class="channel-title"><span class="channel-icon" style="background:#ff8c42;"></span>Lamp / Interior</span>
-            <div class="channel-btns">
-              <button class="mini-btn" onclick="toggleSolo(3)">S</button>
-              <button class="mini-btn" onclick="toggleMute(3)">M</button>
+        <!-- 3: Lamp -->
+        <div class="channel-card" id="card-3">
+          <div class="channel-thumb-wrap" onclick="toggleSolo(3)" title="Click thumbnail to Solo channel">
+            <img src="demo/demo_Lamp.webp" alt="Lamp Pass">
+          </div>
+          <div class="channel-body">
+            <div class="channel-header">
+              <span class="channel-title"><span class="channel-icon" style="background:#ff8c42;"></span>Lamp / Fixture</span>
+              <div class="channel-btns">
+                <button class="mini-btn" id="btn-solo-3" onclick="toggleSolo(3)" title="Solo Channel">S</button>
+                <button class="mini-btn" id="btn-mute-3" onclick="toggleMute(3)" title="Mute Channel">M</button>
+              </div>
             </div>
-          </div>
-          <div class="control-row">
-            <span class="control-label">Power</span>
-            <input type="range" class="slider" min="0" max="300" value="120" oninput="updateIntensity(3, this.value)">
-            <span class="value-tag" id="val-int-3">120%</span>
-          </div>
-          <div class="control-row">
-            <span class="control-label">Farbe</span>
-            <select class="select-input" onchange="updateKelvin(3, this.value)">
-              <option value="2700" selected>2700K (Warm Interior)</option>
-              <option value="2000">2000K (Kamin / Ember)</option>
-              <option value="4000">4000K (Halogen)</option>
-              <option value="6500">6500K (Kaltweiß)</option>
-            </select>
+            <div class="control-row">
+              <span class="control-label">Intensity</span>
+              <input type="range" class="slider" id="slider-int-3" min="0" max="300" value="100" oninput="updateIntensity(3, this.value)">
+              <span class="value-tag" id="val-int-3">100%</span>
+              <button class="reset-single-btn" onclick="resetSingleLight(3)" title="Reset to 100%">↺</button>
+            </div>
+            <div class="control-row">
+              <span class="control-label">Kelvin</span>
+              <select class="select-input" id="select-kelvin-3" onchange="updateKelvin(3, this.value)">
+                <option value="6500" selected>6500K (Neutral / Original)</option>
+                <option value="3200">3200K (Warm Interior)</option>
+                <option value="2200">2200K (Vintage Filament)</option>
+                <option value="4500">4500K (Cool White LED)</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <!-- 5. Specular / Reflection Boost -->
-        <div class="channel-card" id="card-spec">
-          <div class="channel-header">
-            <span class="channel-title"><span class="channel-icon" style="background:#a78bfa;"></span>Specular / Glanz</span>
-            <div class="channel-btns">
-              <button class="mini-btn" onclick="toggleSolo(4)">S</button>
-              <button class="mini-btn" onclick="toggleMute(4)">M</button>
+        <!-- 4: Specular Boost -->
+        <div class="channel-card" id="card-4">
+          <div class="channel-thumb-wrap" onclick="toggleSolo(4)" title="Click thumbnail to Solo channel">
+            <img src="demo/demo_specular_reflection_lighting.webp" alt="Specular Boost Pass">
+          </div>
+          <div class="channel-body">
+            <div class="channel-header">
+              <span class="channel-title"><span class="channel-icon" style="background:#a78bfa;"></span>Specular Boost</span>
+              <div class="channel-btns">
+                <button class="mini-btn" id="btn-solo-4" onclick="toggleSolo(4)" title="Solo Channel">S</button>
+                <button class="mini-btn" id="btn-mute-4" onclick="toggleMute(4)" title="Mute Channel">M</button>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="control-label">Boost</span>
+              <input type="range" class="slider" id="slider-int-4" min="0" max="200" value="0" oninput="updateIntensity(4, this.value)">
+              <span class="value-tag" id="val-int-4">0%</span>
+              <button class="reset-single-btn" onclick="resetSingleLight(4)" title="Reset to 100% / Default">↺</button>
             </div>
           </div>
-          <div class="control-row">
-            <span class="control-label">Reflexion</span>
-            <input type="range" class="slider" min="0" max="200" value="100" oninput="updateIntensity(4, this.value)">
-            <span class="value-tag" id="val-int-4">100%</span>
-          </div>
         </div>
+
       </div>
 
       <!-- Tab 2: Depth of Field & FX -->
@@ -528,33 +637,52 @@
         <div class="fx-group">
           <div class="fx-title">
             <span>🎯 Z-Depth Click-to-Focus</span>
-            <span id="focusDistLabel" style="color:var(--accent); font-family:monospace;">0.42</span>
+            <span id="focusDistLabel" style="color:var(--accent); font-family:monospace;">Depth: 0.45</span>
           </div>
           <p style="font-size:11px; color:var(--text-muted); line-height:1.4;">
-            Klicke an eine beliebige Stelle im Rendering, um den Fokuspunkt exakt dorthin zu setzen.
+            Click anywhere on the rendering viewport to sample the exact Z-depth plane and lock focus.
           </p>
           <div class="control-row">
-            <span class="control-label">Blende / Blur</span>
-            <input type="range" class="slider" id="sliderDofAperture" min="0" max="100" value="25" oninput="updateDofAperture(this.value)">
-            <span class="value-tag" id="val-dof">25%</span>
+            <span class="control-label">Blur / f</span>
+            <input type="range" class="slider" id="sliderDofAperture" min="0" max="100" value="0" oninput="updateDofAperture(this.value)">
+            <span class="value-tag" id="val-dof">0%</span>
+            <button class="reset-single-btn" onclick="updateDofAperture(0)" title="Reset DoF to 0%">↺</button>
+          </div>
+          <div class="control-row">
+            <span class="control-label">Aperture</span>
+            <select class="select-input" id="selectDofBlades" onchange="updateDofBlades(this.value)">
+              <option value="0" selected>Circular (Smooth Optical)</option>
+              <option value="5">5 Blades (Vintage Pentagon)</option>
+              <option value="6">6 Blades (Classic Hexagon)</option>
+              <option value="7">7 Blades (Modern Heptagon)</option>
+              <option value="8">8 Blades (Cinema Octagon)</option>
+            </select>
           </div>
         </div>
 
         <div class="fx-group">
           <div class="fx-title"><span>✨ Highlight Bloom</span></div>
           <div class="control-row">
-            <span class="control-label">Intensität</span>
-            <input type="range" class="slider" min="0" max="100" value="30" oninput="updateBloom(this.value)">
-            <span class="value-tag" id="val-bloom">30%</span>
+            <span class="control-label">Intensity</span>
+            <input type="range" class="slider" id="sliderBloom" min="0" max="100" value="0" oninput="updateBloom(this.value)">
+            <span class="value-tag" id="val-bloom">0%</span>
+            <button class="reset-single-btn" onclick="updateBloom(0)" title="Reset Bloom to 0%">↺</button>
           </div>
         </div>
 
         <div class="fx-group">
-          <div class="fx-title"><span>🎞 ACES Tonemapping</span></div>
+          <div class="fx-title"><span>🎞 Exposure & ACES Tonemapping</span></div>
           <div class="control-row">
-            <span class="control-label">Belichtung</span>
-            <input type="range" class="slider" min="50" max="200" value="100" oninput="updateExposure(this.value)">
-            <span class="value-tag" id="val-exp">1.0x</span>
+            <span class="control-label">Exposure</span>
+            <input type="range" class="slider" id="sliderExposure" min="25" max="250" value="100" oninput="updateExposure(this.value)">
+            <span class="value-tag" id="val-exp">100%</span>
+            <button class="reset-single-btn" onclick="updateExposure(100)" title="Reset Exposure to 100%">↺</button>
+          </div>
+          <div class="control-row">
+            <span class="control-label">ACES Film</span>
+            <input type="range" class="slider" id="sliderAces" min="0" max="100" value="0" oninput="updateAces(this.value)">
+            <span class="value-tag" id="val-aces">0%</span>
+            <button class="reset-single-btn" onclick="updateAces(0)" title="Reset ACES to Neutral (0%)">↺</button>
           </div>
         </div>
       </div>
@@ -562,14 +690,14 @@
       <!-- Tab 3: Pass Inspector -->
       <div class="tab-content" id="tab-inspector">
         <p style="font-size:11px; color:var(--text-muted); line-height:1.4;">
-          Studio-Prüfmodus: Inspiziere Rohdatenkanäle isoliert in Echtzeit.
+          Studio AOV Inspector: Isolate raw geometry, shading, and auxiliary render channels in real-time.
         </p>
         <div class="diag-selector">
-          <button class="diag-btn active" onclick="setInspectorMode(0)">Render Mix</button>
-          <button class="diag-btn" onclick="setInspectorMode(1)">Normals</button>
-          <button class="diag-btn" onclick="setInspectorMode(2)">Albedo / Base</button>
+          <button class="diag-btn active" onclick="setInspectorMode(0)">Beauty LightMix</button>
+          <button class="diag-btn" onclick="setInspectorMode(1)">Surface Normals</button>
+          <button class="diag-btn" onclick="setInspectorMode(2)">Albedo / Diffuse</button>
           <button class="diag-btn" onclick="setInspectorMode(3)">Material ID</button>
-          <button class="diag-btn" onclick="setInspectorMode(4)">Z-Depth Map</button>
+          <button class="diag-btn" onclick="setInspectorMode(4)">Z-Depth Pass</button>
         </div>
       </div>
     </div>
@@ -577,13 +705,12 @@
 
   <!-- Footer -->
   <footer>
-    <div>PolyLightMix v1.0 • WebGL Real-Time Compositing Pipeline</div>
-    <div>CGI & Visualisierung: <a href="https://www.polygonmanufaktur.de" target="_blank" class="footer-link">Polygon Manufaktur Hamburg</a></div>
+    <div>PolyLightMix v1.2 • WebGL2 Linear sRGB Compositing & Trilinear Mipmap Pipeline</div>
+    <div>3D Visualization & CGI: <a href="https://www.polygonmanufaktur.de" target="_blank" rel="noopener" class="footer-link">Polygon Manufaktur</a></div>
   </footer>
 
   <!-- WebGL Shader & Engine -->
   <script>
-    // Konfiguration der relativen Demo-Pfade
     const DEMO_PATHS = {
       front: 'demo/demo_Front.webp',
       left: 'demo/demo_Left.webp',
@@ -596,50 +723,65 @@
       matId: 'demo/demo_material_id.webp'
     };
 
-    // Blackbody Kelvin zu RGB Lookup Formel
+    // Exact neutral 6500K + Planckian locus approximation
     function kelvinToRGB(kelvin) {
-      const temp = kelvin / 100;
+      const k = parseFloat(kelvin);
+      if (Math.abs(k - 6500) < 10) return [1.0, 1.0, 1.0];
+      const temp = k / 100.0;
       let r, g, b;
-      if (temp <= 66) {
-        r = 255;
+      if (temp <= 66.0) {
+        r = 255.0;
         g = 99.4708025861 * Math.log(temp) - 161.1195681661;
-        b = temp <= 19 ? 0 : 138.5177312231 * Math.log(temp - 10) - 305.0447927307;
+        b = temp <= 19.0 ? 0.0 : 138.5177312231 * Math.log(temp - 10.0) - 305.0447927307;
       } else {
-        r = 329.698727446 * Math.pow(temp - 60, -0.1332047592);
-        g = 288.1221695283 * Math.pow(temp - 60, -0.0755148492);
-        b = 255;
+        r = 329.698727446 * Math.pow(temp - 60.0, -0.1332047592);
+        g = 288.1221695283 * Math.pow(temp - 60.0, -0.0755148492);
+        b = 255.0;
       }
       return [
-        Math.max(0, Math.min(255, r)) / 255,
-        Math.max(0, Math.min(255, g)) / 255,
-        Math.max(0, Math.min(255, b)) / 255
+        Math.max(0.0, Math.min(255.0, r)) / 255.0,
+        Math.max(0.0, Math.min(255.0, g)) / 255.0,
+        Math.max(0.0, Math.min(255.0, b)) / 255.0
       ];
     }
 
-    // State
+    // Default initial values
+    const DEFAULT_INTENSITIES = [100, 100, 100, 100, 0]; // 4 lights at 100%, Specular Boost at 0%
+
     const state = {
       lights: [
-        { name: 'Front', intensity: 1.0, rgb: kelvinToRGB(6500), muted: false, solo: false },
-        { name: 'Left', intensity: 0.8, rgb: kelvinToRGB(3200), muted: false, solo: false },
-        { name: 'Right', intensity: 0.6, rgb: kelvinToRGB(4500), muted: false, solo: false },
-        { name: 'Lamp', intensity: 1.2, rgb: kelvinToRGB(2700), muted: false, solo: false },
-        { name: 'Specular', intensity: 1.0, rgb: [1, 1, 1], muted: false, solo: false }
+        { name: 'Front', intensity: 1.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false },
+        { name: 'Left', intensity: 1.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false },
+        { name: 'Right', intensity: 1.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false },
+        { name: 'Lamp', intensity: 1.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false },
+        { name: 'Specular Boost', intensity: 0.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false }
       ],
-      dof: { focalDepth: 0.45, aperture: 0.25 },
-      bloom: 0.3,
+      dof: { focalDepth: 0.45, aperture: 0.0, blades: 0 },
+      bloom: 0.0,
       exposure: 1.0,
-      inspectorMode: 0, // 0 = Mix, 1 = Normals, 2 = Albedo, 3 = MatId, 4 = Depth
-      autopilot: false
+      aces: 0.0,
+      inspectorMode: 0,
+      autopilot: false, // Disabled on load (#11)
+      nativeWidth: 1920,
+      nativeHeight: 1080
     };
 
+    // Offscreen canvas to sample true pixel depth from demo_depth.png on click
+    const depthSamplerCanvas = document.createElement('canvas');
+    const depthSamplerCtx = depthSamplerCanvas.getContext('2d', { willReadFrequently: true });
+    let depthImageLoaded = false;
+
     const canvas = document.getElementById('glCanvas');
-    const gl = canvas.getContext('webgl');
+    // Prefer WebGL2 for hardware NPOT Mipmaps & Trilinear Downscaling (#14)
+    const gl = canvas.getContext('webgl2', { antialias: true, powerPreference: 'high-performance' })
+            || canvas.getContext('webgl', { antialias: true });
+    const isWebGL2 = (typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext);
+    const anisoExt = gl ? (
+      gl.getExtension('EXT_texture_filter_anisotropic') ||
+      gl.getExtension('MOZ_EXT_texture_filter_anisotropic') ||
+      gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic')
+    ) : null;
 
-    if (!gl) {
-      alert('WebGL wird von deinem Browser nicht unterstützt.');
-    }
-
-    // Vertex Shader
     const vsSource = `
       attribute vec2 a_position;
       varying vec2 v_uv;
@@ -649,9 +791,9 @@
       }
     `;
 
-    // Fragment Shader mit Linear-Add, DoF & Inspector
+    // Fragment Shader with exact IEC sRGB transfer curve, Polygonal Aperture Bokeh & Neutral ACES mix
     const fsSource = `
-      precision mediump float;
+      precision highp float;
       varying vec2 v_uv;
 
       uniform sampler2D u_texFront;
@@ -665,30 +807,61 @@
       uniform sampler2D u_texMatId;
 
       uniform vec4 u_lightParams[5]; // rgb, intensity
-      uniform vec2 u_dof; // focalDepth, aperture
+      uniform vec3 u_dof; // x = focalDepth, y = aperture, z = bladeCount (0 = circular)
       uniform float u_bloom;
       uniform float u_exposure;
+      uniform float u_aces;
+      uniform vec2 u_aspect; // aspect ratio correction for bokeh kernel
       uniform int u_inspector;
 
-      vec3 srgbToLinear(vec3 c) {
-        return pow(c, vec3(2.2));
+      const float PI = 3.14159265359;
+      const float TWO_PI = 6.28318530718;
+
+      // Exact IEC 61966-2-1 sRGB to Linear (#9)
+      vec3 srgbToLinear(vec3 srgb) {
+        vec3 cutoff = step(vec3(0.04045), srgb);
+        vec3 higher = pow((srgb + vec3(0.055)) / vec3(1.055), vec3(2.4));
+        vec3 lower = srgb / vec3(12.92);
+        return mix(lower, higher, cutoff);
       }
 
-      vec3 linearToSrgb(vec3 c) {
-        return pow(c, vec3(1.0 / 2.2));
+      // Exact Linear to IEC 61966-2-1 sRGB (#9)
+      vec3 linearToSrgb(vec3 linear) {
+        linear = max(linear, vec3(0.0));
+        vec3 cutoff = step(vec3(0.0031308), linear);
+        vec3 higher = vec3(1.055) * pow(linear, vec3(1.0 / 2.4)) - vec3(0.055);
+        vec3 lower = linear * vec3(12.92);
+        return clamp(mix(lower, higher, cutoff), 0.0, 1.0);
       }
 
-      vec3 acesTonemap(vec3 x) {
+      vec3 acesFilm(vec3 x) {
         float a = 2.51;
         float b = 0.03;
         float c = 2.43;
         float d = 0.59;
         float e = 0.14;
-        return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);
+        return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+      }
+
+      vec3 sampleLightMixLinear(vec2 uv) {
+        vec3 f = srgbToLinear(texture2D(u_texFront, uv).rgb) * u_lightParams[0].rgb * u_lightParams[0].a;
+        vec3 l = srgbToLinear(texture2D(u_texLeft, uv).rgb) * u_lightParams[1].rgb * u_lightParams[1].a;
+        vec3 r = srgbToLinear(texture2D(u_texRight, uv).rgb) * u_lightParams[2].rgb * u_lightParams[2].a;
+        vec3 lamp = srgbToLinear(texture2D(u_texLamp, uv).rgb) * u_lightParams[3].rgb * u_lightParams[3].a;
+        vec3 spec = srgbToLinear(texture2D(u_texSpec, uv).rgb) * u_lightParams[4].rgb * u_lightParams[4].a;
+        return f + l + r + lamp + spec;
+      }
+
+      // Polygonal aperture shape modulation (#10)
+      float polygonRadius(float angle, float blades) {
+        if (blades < 3.0) return 1.0; // Circular
+        float sector = TWO_PI / blades;
+        float halfSector = sector * 0.5;
+        float localAngle = mod(angle + PI, sector) - halfSector;
+        return cos(halfSector) / max(0.001, cos(localAngle));
       }
 
       void main() {
-        // Inspector Modes
         if (u_inspector == 1) {
           gl_FragColor = texture2D(u_texNormals, v_uv);
           return;
@@ -704,38 +877,57 @@
           return;
         }
 
-        // DoF & Linear ADD Blending
-        float currentDepth = texture2D(u_texDepth, v_uv).r;
-        float blurAmount = abs(currentDepth - u_dof.x) * u_dof.y * 0.015;
+        float centerDepth = texture2D(u_texDepth, v_uv).r;
+        float coc = abs(centerDepth - u_dof.x) * u_dof.y * 0.022;
 
         vec3 accum = vec3(0.0);
-        const int SAMPLES = 8;
-        vec2 blurDir = vec2(blurAmount, blurAmount * 0.7);
 
-        for (int i = 0; i < SAMPLES; i++) {
-          float angle = float(i) * 0.785398; // 8 directions
-          vec2 offset = vec2(cos(angle), sin(angle)) * blurAmount;
-          vec2 sampleUv = clamp(v_uv + offset, 0.0, 1.0);
+        if (coc < 0.00025) {
+          // Crisp unblurred single sample when DoF is 0% (#8)
+          accum = sampleLightMixLinear(v_uv);
+        } else {
+          // 24-Tap Golden Angle Spiral with Polygonal Aperture Blades (#10)
+          const int SAMPLES = 24;
+          float goldenAngle = 2.39996323;
+          float totalWeight = 0.0;
 
-          vec3 f = srgbToLinear(texture2D(u_texFront, sampleUv).rgb) * u_lightParams[0].rgb * u_lightParams[0].a;
-          vec3 l = srgbToLinear(texture2D(u_texLeft, sampleUv).rgb) * u_lightParams[1].rgb * u_lightParams[1].a;
-          vec3 r = srgbToLinear(texture2D(u_texRight, sampleUv).rgb) * u_lightParams[2].rgb * u_lightParams[2].a;
-          vec3 lamp = srgbToLinear(texture2D(u_texLamp, sampleUv).rgb) * u_lightParams[3].rgb * u_lightParams[3].a;
-          vec3 spec = srgbToLinear(texture2D(u_texSpec, sampleUv).rgb) * u_lightParams[4].rgb * u_lightParams[4].a;
+          for (int i = 0; i < SAMPLES; i++) {
+            float fi = float(i);
+            float rNorm = sqrt((fi + 0.5) / float(SAMPLES));
+            float theta = fi * goldenAngle;
 
-          accum += (f + l + r + lamp + spec);
+            float polyShape = polygonRadius(theta, u_dof.z);
+            vec2 offset = vec2(cos(theta), sin(theta)) * rNorm * polyShape * coc * u_aspect;
+            vec2 sampleUv = clamp(v_uv + offset, 0.0, 1.0);
+
+            vec3 sCol = sampleLightMixLinear(sampleUv);
+            // Slight bokeh highlight weighting
+            float lum = dot(sCol, vec3(0.2126, 0.7152, 0.0722));
+            float w = 1.0 + max(0.0, lum - 0.7) * 1.5;
+
+            accum += sCol * w;
+            totalWeight += w;
+          }
+          accum /= totalWeight;
         }
-        accum /= float(SAMPLES);
 
-        // Highlight Bloom Bleed
-        vec3 bloom = max(accum - vec3(0.8), vec3(0.0)) * u_bloom;
-        accum += bloom;
+        // Multi-tap Highlight Bloom (#13)
+        if (u_bloom > 0.001) {
+          vec3 bloomSum = vec3(0.0);
+          for (int b = 0; b < 8; b++) {
+            float ang = float(b) * 0.785398;
+            vec2 bOff = vec2(cos(ang), sin(ang)) * 0.009 * u_aspect;
+            vec3 bSample = sampleLightMixLinear(clamp(v_uv + bOff, 0.0, 1.0));
+            bloomSum += max(bSample - vec3(0.72), vec3(0.0));
+          }
+          accum += (bloomSum / 8.0) * (u_bloom * 2.2);
+        }
 
-        // Exposure & Tonemap
+        // Exposure & optional ACES Filmic Rolloff (#12)
         accum *= u_exposure;
-        vec3 finalColor = acesTonemap(accum);
+        vec3 mapped = mix(accum, acesFilm(accum), u_aces);
 
-        gl_FragColor = vec4(linearToSrgb(finalColor), 1.0);
+        gl_FragColor = vec4(linearToSrgb(mapped), 1.0);
       }
     `;
 
@@ -757,23 +949,17 @@
     gl.linkProgram(program);
     gl.useProgram(program);
 
-    // Fullscreen Quad
     const quadBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-      -1, -1,
-       1, -1,
-      -1,  1,
-      -1,  1,
-       1, -1,
-       1,  1,
+      -1, -1,  1, -1,  -1,  1,
+      -1,  1,  1, -1,   1,  1
     ]), gl.STATIC_DRAW);
 
     const posAttr = gl.getAttribLocation(program, 'a_position');
     gl.enableVertexAttribArray(posAttr);
     gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
 
-    // Texture Units Management
     const textures = {};
     const textureSlots = [
       { key: 'front', uniform: 'u_texFront', unit: 0, path: DEMO_PATHS.front },
@@ -787,46 +973,98 @@
       { key: 'matId', uniform: 'u_texMatId', unit: 8, path: DEMO_PATHS.matId }
     ];
 
-    function createDummyTexture(unit) {
+    function isPowerOf2(value) {
+      return (value & (value - 1)) === 0;
+    }
+
+    function createPlaceholderTexture(unit) {
       const tex = gl.createTexture();
       gl.activeTexture(gl.TEXTURE0 + unit);
       gl.bindTexture(gl.TEXTURE_2D, tex);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([30, 30, 35, 255]));
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
       return tex;
     }
 
     textureSlots.forEach(slot => {
-      textures[slot.key] = createDummyTexture(slot.unit);
-      const loc = gl.getUniformLocation(program, slot.uniform);
-      gl.uniform1i(loc, slot.unit);
+      textures[slot.key] = createPlaceholderTexture(slot.unit);
+      gl.uniform1i(gl.getUniformLocation(program, slot.uniform), slot.unit);
 
-      // Async Loader für Demo-Bilder
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
         gl.activeTexture(gl.TEXTURE0 + slot.unit);
         gl.bindTexture(gl.TEXTURE_2D, textures[slot.key]);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
+        // Hardware Trilinear Mipmapping + Anisotropic Filtering for smooth downscaling (#14)
+        if (isWebGL2 || (isPowerOf2(img.width) && isPowerOf2(img.height))) {
+          gl.generateMipmap(gl.TEXTURE_2D);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+          if (anisoExt) {
+            const maxAniso = gl.getParameter(anisoExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+            gl.texParameterf(gl.TEXTURE_2D, anisoExt.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, maxAniso));
+          }
+        } else {
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        }
+
         if (slot.key === 'front') {
-          canvas.width = img.width || 1920;
-          canvas.height = img.height || 1080;
-          gl.viewport(0, 0, canvas.width, canvas.height);
+          state.nativeWidth = img.width || 1920;
+          state.nativeHeight = img.height || 1080;
+          resizeViewportCanvas();
+        }
+        if (slot.key === 'depth') {
+          depthSamplerCanvas.width = img.width;
+          depthSamplerCanvas.height = img.height;
+          depthSamplerCtx.drawImage(img, 0, 0);
+          depthImageLoaded = true;
         }
         requestRender();
       };
       img.src = slot.path;
     });
 
+    // Dynamic DPR-aware resize so GPU Trilinear Mipmapping handles window downscaling (#14)
+    function resizeViewportCanvas() {
+      const container = document.getElementById('viewport');
+      const availW = Math.max(200, container.clientWidth - 24);
+      const availH = Math.max(200, container.clientHeight - 24);
+      const imgAspect = state.nativeWidth / state.nativeHeight;
+      const boxAspect = availW / availH;
+
+      let cssW, cssH;
+      if (boxAspect > imgAspect) {
+        cssH = availH;
+        cssW = Math.round(cssH * imgAspect);
+      } else {
+        cssW = availW;
+        cssH = Math.round(cssW / imgAspect);
+      }
+
+      // Cap internal render resolution to native size or 2x DPR for crisp supersampling
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+      canvas.width = Math.min(state.nativeWidth, Math.round(cssW * dpr));
+      canvas.height = Math.min(state.nativeHeight, Math.round(cssH * dpr));
+
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      requestRender();
+    }
+
+    window.addEventListener('resize', resizeViewportCanvas);
+
     // Uniform Locations
     const uLightParamsLoc = gl.getUniformLocation(program, 'u_lightParams');
     const uDofLoc = gl.getUniformLocation(program, 'u_dof');
     const uBloomLoc = gl.getUniformLocation(program, 'u_bloom');
     const uExposureLoc = gl.getUniformLocation(program, 'u_exposure');
+    const uAcesLoc = gl.getUniformLocation(program, 'u_aces');
+    const uAspectLoc = gl.getUniformLocation(program, 'u_aspect');
     const uInspectorLoc = gl.getUniformLocation(program, 'u_inspector');
 
     let renderRequested = false;
@@ -840,7 +1078,6 @@
     function render() {
       renderRequested = false;
 
-      // Berechne Solo vs Mute
       const hasSolo = state.lights.some(l => l.solo);
       const lightData = [];
 
@@ -854,97 +1091,191 @@
         lightData.push(l.rgb[0], l.rgb[1], l.rgb[2], activePower);
       });
 
+      const aspectY = state.nativeWidth / Math.max(1, state.nativeHeight);
+
       gl.uniform4fv(uLightParamsLoc, new Float32Array(lightData));
-      gl.uniform2f(uDofLoc, state.dof.focalDepth, state.dof.aperture);
+      gl.uniform3f(uDofLoc, state.dof.focalDepth, state.dof.aperture, state.dof.blades);
       gl.uniform1f(uBloomLoc, state.bloom);
       gl.uniform1f(uExposureLoc, state.exposure);
+      gl.uniform1f(uAcesLoc, state.aces);
+      gl.uniform2f(uAspectLoc, 1.0, aspectY);
       gl.uniform1i(uInspectorLoc, state.inspectorMode);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
-    // UI Events & Callbacks
+    // Central UI synchronization (#1 & #2)
+    function syncUIWithState() {
+      const hasSolo = state.lights.some(l => l.solo);
+      state.lights.forEach((l, i) => {
+        const pct = Math.round(l.intensity * 100);
+        const slider = document.getElementById('slider-int-' + i);
+        const label = document.getElementById('val-int-' + i);
+        if (slider) slider.value = pct;
+        if (label) label.innerText = pct + '%';
+
+        const sel = document.getElementById('select-kelvin-' + i);
+        if (sel) sel.value = String(l.kelvin);
+
+        const btnSolo = document.getElementById('btn-solo-' + i);
+        const btnMute = document.getElementById('btn-mute-' + i);
+        const card = document.getElementById('card-' + i);
+        if (btnSolo) btnSolo.classList.toggle('active-solo', l.solo);
+        if (btnMute) btnMute.classList.toggle('active-mute', l.muted);
+        if (card) {
+          const isDimmed = (hasSolo && !l.solo) || (!hasSolo && l.muted);
+          card.classList.toggle('dimmed', isDimmed);
+        }
+      });
+
+      const dofPct = Math.round(state.dof.aperture * 100);
+      document.getElementById('sliderDofAperture').value = dofPct;
+      document.getElementById('val-dof').innerText = dofPct + '%';
+      document.getElementById('selectDofBlades').value = String(state.dof.blades);
+      document.getElementById('focusDistLabel').innerText = 'Depth: ' + state.dof.focalDepth.toFixed(2);
+
+      const bloomPct = Math.round(state.bloom * 100);
+      document.getElementById('sliderBloom').value = bloomPct;
+      document.getElementById('val-bloom').innerText = bloomPct + '%';
+
+      const expPct = Math.round(state.exposure * 100);
+      document.getElementById('sliderExposure').value = expPct;
+      document.getElementById('val-exp').innerText = expPct + '%';
+
+      const acesPct = Math.round(state.aces * 100);
+      document.getElementById('sliderAces').value = acesPct;
+      document.getElementById('val-aces').innerText = acesPct + '%';
+
+      document.querySelectorAll('.diag-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', i === state.inspectorMode);
+      });
+    }
+
+    // UI Controls & Individual Reset Handlers (#5)
     function updateIntensity(idx, val) {
       stopAutopilot();
-      state.lights[idx].intensity = val / 100.0;
-      document.getElementById('val-int-' + idx).innerText = val + '%';
+      state.lights[idx].intensity = parseFloat(val) / 100.0;
+      document.getElementById('val-int-' + idx).innerText = Math.round(val) + '%';
+      requestRender();
+    }
+
+    function resetSingleLight(idx) {
+      stopAutopilot();
+      // Reset to 100% as requested (#5), or toggle between 0% and 100% on Specular Boost
+      const targetPct = (idx === 4 && state.lights[4].intensity === 1.0) ? 0 : 100;
+      state.lights[idx].intensity = targetPct / 100.0;
+      state.lights[idx].kelvin = 6500;
+      state.lights[idx].rgb = [1, 1, 1];
+      syncUIWithState();
       requestRender();
     }
 
     function updateKelvin(idx, val) {
       stopAutopilot();
-      state.lights[idx].rgb = kelvinToRGB(parseFloat(val));
+      state.lights[idx].kelvin = parseInt(val, 10);
+      state.lights[idx].rgb = kelvinToRGB(val);
       requestRender();
     }
 
     function toggleMute(idx) {
       stopAutopilot();
       state.lights[idx].muted = !state.lights[idx].muted;
+      syncUIWithState();
       requestRender();
     }
 
     function toggleSolo(idx) {
       stopAutopilot();
       state.lights[idx].solo = !state.lights[idx].solo;
+      syncUIWithState();
       requestRender();
     }
 
     function updateDofAperture(val) {
-      state.dof.aperture = val / 100.0;
-      document.getElementById('val-dof').innerText = val + '%';
+      stopAutopilot();
+      state.dof.aperture = parseFloat(val) / 100.0;
+      syncUIWithState();
+      requestRender();
+    }
+
+    function updateDofBlades(val) {
+      stopAutopilot();
+      state.dof.blades = parseInt(val, 10);
       requestRender();
     }
 
     function updateBloom(val) {
-      state.bloom = val / 100.0;
-      document.getElementById('val-bloom').innerText = val + '%';
+      stopAutopilot();
+      state.bloom = parseFloat(val) / 100.0;
+      syncUIWithState();
       requestRender();
     }
 
     function updateExposure(val) {
-      state.exposure = val / 100.0;
-      document.getElementById('val-exp').innerText = (val / 100.0).toFixed(1) + 'x';
+      stopAutopilot();
+      state.exposure = parseFloat(val) / 100.0;
+      syncUIWithState();
+      requestRender();
+    }
+
+    function updateAces(val) {
+      stopAutopilot();
+      state.aces = parseFloat(val) / 100.0;
+      syncUIWithState();
       requestRender();
     }
 
     function setInspectorMode(mode) {
+      stopAutopilot();
       state.inspectorMode = mode;
-      document.querySelectorAll('.diag-btn').forEach((btn, i) => {
-        btn.classList.toggle('active', i === mode);
-      });
+      syncUIWithState();
       requestRender();
     }
 
-    function switchTab(name) {
+    function switchTab(name, btnEl) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      event.target.classList.add('active');
+      btnEl.classList.add('active');
       document.getElementById('tab-' + name).classList.add('active');
     }
 
-    // Click to Focus Interaktion
+    // True Z-Depth Pixel Sampling on Click
     canvas.addEventListener('click', (e) => {
       stopAutopilot();
       const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = (e.clientY - rect.top) / rect.height;
+      const normX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const normY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
 
-      // Reticle Animation
       const reticle = document.getElementById('reticle');
+      reticle.style.display = 'none';
+      void reticle.offsetWidth; // Restart animation
       reticle.style.left = e.clientX + 'px';
       reticle.style.top = e.clientY + 'px';
       reticle.style.display = 'block';
-      setTimeout(() => reticle.style.display = 'none', 1200);
 
-      // Lese Tiefe aus Z-Depth
-      state.dof.focalDepth = Math.min(1.0, Math.max(0.0, y * 0.8 + 0.1));
-      document.getElementById('focusDistLabel').innerText = (state.dof.focalDepth * 10.0).toFixed(2) + ' m';
+      if (depthImageLoaded) {
+        const px = Math.floor(normX * (depthSamplerCanvas.width - 1));
+        const py = Math.floor(normY * (depthSamplerCanvas.height - 1));
+        const pixel = depthSamplerCtx.getImageData(px, py, 1, 1).data;
+        state.dof.focalDepth = pixel[0] / 255.0;
+      } else {
+        state.dof.focalDepth = normY;
+      }
+
+      // If DoF blur is currently 0%, nudge it to 35% so the user immediately sees the focus shift
+      if (state.dof.aperture < 0.02) {
+        state.dof.aperture = 0.35;
+      }
+
+      syncUIWithState();
       requestRender();
     });
 
-    // Showroom Autopilot Animation
-    let autoTimer = null;
-    let autoStep = 0;
+    // Showroom Autopilot (#2 & #11: moves sliders in real-time and runs ~33% faster)
+    let autoAnimId = null;
+    let lastTime = 0;
+    let autoPhase = 0;
+
     function toggleAutopilot() {
       if (state.autopilot) {
         stopAutopilot();
@@ -955,45 +1286,66 @@
 
     function startAutopilot() {
       state.autopilot = true;
+      state.inspectorMode = 0;
+      state.lights.forEach(l => { l.muted = false; l.solo = false; });
       document.getElementById('btnAutopilot').classList.add('active');
       document.getElementById('bannerDemo').style.display = 'flex';
+      lastTime = performance.now();
+      autoAnimId = requestAnimationFrame(autopilotLoop);
+    }
 
-      autoTimer = setInterval(() => {
-        autoStep += 0.03;
-        state.lights[0].intensity = 0.5 + Math.sin(autoStep) * 0.5;
-        state.lights[1].intensity = 0.6 + Math.cos(autoStep * 0.7) * 0.5;
-        state.lights[3].intensity = 0.8 + Math.sin(autoStep * 1.2) * 0.6;
-        requestRender();
-      }, 50);
+    function autopilotLoop(now) {
+      if (!state.autopilot) return;
+      const dt = (now - lastTime) / 1000.0;
+      lastTime = now;
+
+      // 0.85 rad/s is ~35% faster than previous 0.60 rad/s (#11)
+      autoPhase += dt * 0.85;
+
+      state.lights[0].intensity = 0.75 + Math.sin(autoPhase) * 0.65;
+      state.lights[1].intensity = 0.80 + Math.cos(autoPhase * 0.85) * 0.70;
+      state.lights[2].intensity = 0.70 + Math.sin(autoPhase * 1.15 + 1.2) * 0.65;
+      state.lights[3].intensity = 0.90 + Math.cos(autoPhase * 1.35 + 2.0) * 0.85;
+      state.lights[4].intensity = Math.max(0.0, Math.sin(autoPhase * 0.7) * 0.60);
+
+      syncUIWithState();
+      render();
+      autoAnimId = requestAnimationFrame(autopilotLoop);
     }
 
     function stopAutopilot() {
       if (!state.autopilot) return;
       state.autopilot = false;
-      clearInterval(autoTimer);
+      if (autoAnimId) cancelAnimationFrame(autoAnimId);
       document.getElementById('btnAutopilot').classList.remove('active');
       document.getElementById('bannerDemo').style.display = 'none';
     }
 
+    // Complete Reset (#1, #3, #6, #8, #12, #13)
     function resetAll() {
       stopAutopilot();
       state.lights.forEach((l, i) => {
-        l.intensity = [1.0, 0.8, 0.6, 1.2, 1.0][i];
+        l.intensity = DEFAULT_INTENSITIES[i] / 100.0;
+        l.kelvin = 6500;
+        l.rgb = [1, 1, 1];
         l.muted = false;
         l.solo = false;
       });
       state.dof.focalDepth = 0.45;
-      state.dof.aperture = 0.25;
-      state.bloom = 0.3;
+      state.dof.aperture = 0.0;
+      state.dof.blades = 0;
+      state.bloom = 0.0;
       state.exposure = 1.0;
+      state.aces = 0.0;
       state.inspectorMode = 0;
+
+      syncUIWithState();
       requestRender();
     }
 
-    // Canvas Initialisierung
-    canvas.width = 1920;
-    canvas.height = 1080;
-    gl.viewport(0, 0, canvas.width, canvas.height);
+    // Initial Startup
+    resizeViewportCanvas();
+    syncUIWithState();
     requestRender();
   </script>
 </body>
