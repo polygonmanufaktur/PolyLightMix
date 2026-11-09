@@ -1,16 +1,30 @@
-# PolyLightMix – Interactive WebGL 3D Relight & Post-FX Compositor
+# PolyLightMix – Interactive WebGL2 3D Relight & Post-FX Compositor
 
-PolyLightMix is a lightweight, zero-dependency, open-source WebGL relighting and post-processing engine built for 3D artists, architectural visualizers, and digital agencies. Running entirely client-side in any modern web browser, it translates advanced studio relighting pipelines—familiar from industry render engines like Corona Renderer, Indigo, and V-Ray LightMix—into an interactive, hardware-accelerated web experience.
+[![Live Demo on Polygon Manufaktur](https://img.shields.io/badge/Live_Demo-polygonmanufaktur.de%2Fpolylightmix-ff8c42?style=for-the-badge)](https://www.polygonmanufaktur.de/polylightmix/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
-Traditional architectural visualization workflows lock illumination into static 2D images. When clients or stakeholders request lighting revisions—such as testing dusk ambiance, dimming interior pendant fixtures, or checking exterior facade washlights—artists typically face time-consuming re-renders or cumbersome multi-layer PSD files. PolyLightMix removes this bottleneck by allowing real-time compositing of individual light passes using linear mathematical blending (ADD) directly inside the browser viewport.
+[**👉 Launch Interactive Live Demo: https://www.polygonmanufaktur.de/polylightmix/**](https://www.polygonmanufaktur.de/polylightmix/)
 
-### Core Capabilities:
+[![PolyLightMix Interactive 3D Relight Preview](demo/preview.webp)](https://www.polygonmanufaktur.de/polylightmix/)
 
-* **Real-Time Linear ADD Blending:** Imports raw, isolated lighting passes (e.g., skylight, golden hour sun, interior pendants, accent LEDs, pool lights) and calculates mathematically accurate light summation without dynamic range clipping.
-* **Physical Kelvin Color Tuning:** Dynamically shifts color temperatures from warm candlelight (1800K) to deep overcast sky (9500K) using real-time Planckian blackbody-to-RGB conversion, complete with independent 0%–300% intensity sliders.
-* **Interactive Click-to-Focus Depth of Field:** Real-time Z-depth sampling allows users to click anywhere on the 3D scene to visually set focal distance, controlling aperture radius and cinematic bokeh blurring on the fly.
-* **Cinematic Shading Pipeline:** High-speed highlight bloom extraction, ambient occlusion pass multiplication, and ACES filmic tonemapping preserve fine dynamic range and eliminate blown-out digital highlights.
-* **Showroom Autopilot Demo:** Features an integrated self-running showcase sequence that automatically cycles through daylight, golden hour, and blue-hour moods, pausing immediately when a user interacts.
-* **Zero Dependencies & Single-File Architecture:** Fully self-contained HTML/CSS/JS architecture with zero external NPM packages or bulky framework overhead.
+**PolyLightMix** is a lightweight, zero-dependency, open-source WebGL2 relighting and post-processing engine built for 3D artists, architectural visualizers, and digital agencies. Running entirely client-side in any modern web browser, it translates studio relighting pipelines—familiar from industry render engines like Indigo Renderer, Corona Renderer, and V-Ray LightMix—into a hardware-accelerated web experience.
 
-Engineered for seamless embedding via `<iframe>` or direct script tags into agency portfolios, real estate sales portals, and client presentation platforms. Developed and maintained by Polygon Manufaktur (Hamburg, Germany).
+Traditional architectural visualization workflows lock illumination into static 2D images. When clients or stakeholders request lighting adjustments, artists typically face time-consuming re-renders or heavy multi-layer PSD files. PolyLightMix removes this bottleneck by enabling real-time linear light pass compositing directly inside the browser viewport.
+
+### Core Capabilities
+
+* **Exact IEC 61966-2-1 Linear sRGB ADD Blending:** Converts multi-pass lighting layers (`Front`, `Left`, `Right`, `Lamp`, and `Specular Boost`) into linear color space, sums their radiant energy without midtone shifts, and outputs calibrated sRGB.
+* **Physical Kelvin Color Tuning:** Dynamically adjusts color temperatures per light source from warm candle/filament tones (2000K) to neutral daylight (6500K) and cool overcast sky (9000K).
+* **Interactive Click-to-Focus Depth of Field (DoF):** Samples real pixel depth values directly from the 3D Z-depth pass on click and renders customizable polygonal bokeh shapes (**Circular, 5-Blade Pentagon, 6-Blade Hexagon, 7-Blade Heptagon, and 8-Blade Octagon**).
+* **Cinematic Post-FX & Studio AOV Inspector:** Includes multi-tap highlight bloom, exposure control, optional ACES Filmic tonemapping rolloff, and a real-time pass inspector for *Surface Normals*, *Albedo*, *Material ID*, and *Z-Depth*.
+* **Hardware Trilinear Mipmap Anti-Aliasing:** Uses WebGL2 mipmap generation (`LINEAR_MIPMAP_LINEAR`) and anisotropic filtering for crisp, alias-free downscaling across any viewport resolution.
+* **Showroom Autopilot:** Integrated self-running showcase mode that animates lighting moods and UI sliders in real-time until the user interacts.
+
+---
+
+### Live Implementation & Credits
+
+Developed and maintained by [**Polygon Manufaktur**](https://www.polygonmanufaktur.de) – Studio for High-End 3D Architectural Visualization, Product CGI & Animation in Hamburg, Germany.
+
+* **Live Tool & Interactive Demo:** [https://www.polygonmanufaktur.de/polylightmix/](https://www.polygonmanufaktur.de/polylightmix/)
+* **Studio Portfolio:** [https://www.polygonmanufaktur.de](https://www.polygonmanufaktur.de)
