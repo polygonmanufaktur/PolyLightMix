@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PolyLightMix – Interactive 3D WebGL Relight & Compositor | Polygon Manufaktur</title>
-  <meta name="description" content="Free interactive WebGL 3D Relight & Post-FX Compositing Tool for architects and 3D artists. Real-time linear light mixing, Kelvin tuning, and Z-depth DoF by Polygon Manufaktur.">
+  <meta name="description" content="Free interactive WebGL2 3D Relight & Post-FX Compositing Tool for architects and 3D artists. Real-time linear light mixing, Kelvin tuning, and Z-depth DoF by Polygon Manufaktur.">
   <link rel="canonical" href="https://www.polygonmanufaktur.de/polylightmix/">
 
   <style>
@@ -36,12 +36,13 @@
     header {
       background: var(--bg-panel);
       border-bottom: 1px solid var(--border);
-      padding: 10px 20px;
+      padding: 10px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       height: 56px;
       z-index: 10;
+      gap: 10px;
     }
     .brand {
       display: flex;
@@ -49,6 +50,7 @@
       gap: 12px;
       text-decoration: none;
       color: inherit;
+      flex-shrink: 0;
     }
     .logo-badge {
       background: linear-gradient(135deg, #ff8c42, #e056fd);
@@ -73,13 +75,14 @@
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      flex-wrap: wrap;
     }
     .btn {
       background: var(--bg-input);
       color: var(--text-main);
       border: 1px solid var(--border);
-      padding: 6px 12px;
+      padding: 6px 11px;
       border-radius: 6px;
       font-size: 12px;
       font-weight: 500;
@@ -97,6 +100,13 @@
       font-weight: 700;
     }
     .btn-accent:hover { background: var(--accent-hover); }
+    .btn-blue {
+      background: rgba(56, 189, 248, 0.14);
+      border-color: rgba(56, 189, 248, 0.4);
+      color: var(--accent-blue);
+      font-weight: 600;
+    }
+    .btn-blue:hover { background: rgba(56, 189, 248, 0.25); }
     .btn.active {
       background: #0284c7;
       border-color: #38bdf8;
@@ -129,6 +139,56 @@
       cursor: crosshair;
       border-radius: 4px;
     }
+
+    /* Drag & Drop Overlay */
+    .drop-overlay {
+      position: absolute;
+      inset: 16px;
+      border: 2px dashed var(--accent);
+      border-radius: 12px;
+      background: rgba(11, 13, 17, 0.88);
+      backdrop-filter: blur(8px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      z-index: 30;
+      text-align: center;
+      padding: 24px;
+    }
+    .drop-overlay.visible { display: flex; }
+    .drop-overlay.blank-mode {
+      pointer-events: auto;
+      border-color: #3b4764;
+      background: rgba(19, 23, 31, 0.92);
+    }
+    .drop-overlay.blank-mode:hover { border-color: var(--accent); }
+    .drop-icon { font-size: 38px; }
+    .drop-title { font-size: 16px; font-weight: 700; color: var(--text-main); }
+    .drop-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      max-width: 460px;
+      line-height: 1.5;
+    }
+    .drop-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 4px;
+    }
+    .drop-tag {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: monospace;
+      color: var(--accent-blue);
+    }
+
     .focus-reticle {
       position: fixed;
       width: 28px;
@@ -173,6 +233,22 @@
       pointer-events: none;
       z-index: 5;
     }
+    .toast-banner {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--accent-blue);
+      color: var(--text-main);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      z-index: 25;
+      display: none;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+    }
     .pulse-dot {
       width: 8px; height: 8px;
       background: var(--accent);
@@ -183,7 +259,7 @@
 
     /* Control Sidebar */
     .sidebar {
-      width: 410px;
+      width: 415px;
       background: var(--bg-panel);
       border-left: 1px solid var(--border);
       display: flex;
@@ -283,6 +359,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 6px;
     }
     .channel-title {
       font-size: 12px;
@@ -290,17 +367,22 @@
       display: flex;
       align-items: center;
       gap: 7px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .channel-icon {
       width: 8px;
       height: 8px;
       border-radius: 50%;
       background: var(--accent);
+      flex-shrink: 0;
     }
     .channel-btns {
       display: flex;
       align-items: center;
       gap: 4px;
+      flex-shrink: 0;
     }
     .mini-btn {
       background: var(--bg-input);
@@ -420,6 +502,23 @@
       font-weight: 700;
     }
 
+    .aov-upload-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .aov-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+    }
+
     /* Footer Status */
     footer {
       background: var(--bg-dark);
@@ -442,6 +541,10 @@
 </head>
 <body>
 
+  <!-- Hidden File Inputs for Batch & Single Slot Upload -->
+  <input type="file" id="batchFileInput" multiple accept="image/*" style="display:none" onchange="handleBatchFiles(this.files)">
+  <input type="file" id="singleSlotInput" accept="image/*" style="display:none" onchange="handleSingleSlotFile(this.files)">
+
   <!-- Header -->
   <header>
     <a href="https://www.polygonmanufaktur.de" target="_blank" rel="noopener" class="brand" title="Polygon Manufaktur – 3D Visualization Studio">
@@ -453,22 +556,55 @@
     </a>
 
     <div class="header-actions">
+      <button class="btn btn-blue" onclick="document.getElementById('batchFileInput').click()" title="Drop or select multiple render passes at once (Auto-Matches filenames)">
+        📂 Load Custom Passes
+      </button>
+      <button class="btn" onclick="clearToBlankStudio()" title="Clear demo images and start with an empty studio dropzone">
+        🗑️ Clear Scene
+      </button>
       <button class="btn" id="btnAutopilot" onclick="toggleAutopilot()">
         <span class="pulse-dot"></span> Showroom Autopilot
       </button>
-      <button class="btn btn-accent" onclick="resetAll()" title="Reset all channels and effects to default">Reset All</button>
+      <button class="btn" onclick="exportSnapshot()" title="Download current beauty mix as PNG">
+        📷 Save PNG
+      </button>
+      <button class="btn btn-accent" onclick="resetAll()" title="Reset all sliders and effects to default">
+        Reset All
+      </button>
     </div>
   </header>
 
   <!-- Workspace -->
-  <div class="workspace">
+  <div class="workspace" id="dropZone">
     <!-- Viewport -->
     <div class="viewport-container" id="viewport">
       <canvas id="glCanvas"></canvas>
       <div class="focus-reticle" id="reticle"></div>
+
+      <!-- Drag & Drop / Blank Studio Overlay -->
+      <div class="drop-overlay" id="dropOverlay" onclick="document.getElementById('batchFileInput').click()">
+        <div class="drop-icon">📥</div>
+        <div class="drop-title" id="dropTitle">Drop Your 3D Render Passes Here</div>
+        <div class="drop-sub">
+          Drag & drop multiple lighting passes and AOV channels at once (PNG, WebP, JPG), or click anywhere here to browse. Filenames are matched automatically:
+        </div>
+        <div class="drop-tags">
+          <span class="drop-tag">*front* / *key*</span>
+          <span class="drop-tag">*left* / *fill*</span>
+          <span class="drop-tag">*right* / *rim*</span>
+          <span class="drop-tag">*lamp* / *sun* / *sky*</span>
+          <span class="drop-tag">*spec* / *refl*</span>
+          <span class="drop-tag">*depth* / *zdepth*</span>
+          <span class="drop-tag">*normal*</span>
+          <span class="drop-tag">*albedo*</span>
+          <span class="drop-tag">*id*</span>
+        </div>
+      </div>
+
       <div class="demo-banner" id="bannerDemo" style="display: none;">
         <span class="pulse-dot"></span> Showroom Autopilot Active – Click viewport or adjust any slider to take manual control
       </div>
+      <div class="toast-banner" id="toastBanner"></div>
     </div>
 
     <!-- Sidebar Controls -->
@@ -485,12 +621,13 @@
         <!-- 0: Front Light -->
         <div class="channel-card" id="card-0">
           <div class="channel-thumb-wrap" onclick="toggleSolo(0)" title="Click thumbnail to Solo channel">
-            <img src="demo/demo_Front.webp" alt="Front Light Pass">
+            <img id="thumb-front" src="demo/demo_Front.webp" alt="Light 1">
           </div>
           <div class="channel-body">
             <div class="channel-header">
-              <span class="channel-title"><span class="channel-icon" style="background:#38bdf8;"></span>Front Light</span>
+              <span class="channel-title"><span class="channel-icon" style="background:#38bdf8;"></span><span id="title-0">Front Light</span></span>
               <div class="channel-btns">
+                <button class="mini-btn" onclick="triggerSlotUpload('front')" title="Load custom image for this slot">📁</button>
                 <button class="mini-btn" id="btn-solo-0" onclick="toggleSolo(0)" title="Solo Channel">S</button>
                 <button class="mini-btn" id="btn-mute-0" onclick="toggleMute(0)" title="Mute Channel">M</button>
               </div>
@@ -517,12 +654,13 @@
         <!-- 1: Left Light -->
         <div class="channel-card" id="card-1">
           <div class="channel-thumb-wrap" onclick="toggleSolo(1)" title="Click thumbnail to Solo channel">
-            <img src="demo/demo_Left.webp" alt="Left Light Pass">
+            <img id="thumb-left" src="demo/demo_Left.webp" alt="Light 2">
           </div>
           <div class="channel-body">
             <div class="channel-header">
-              <span class="channel-title"><span class="channel-icon" style="background:#fbbf24;"></span>Left Light</span>
+              <span class="channel-title"><span class="channel-icon" style="background:#fbbf24;"></span><span id="title-1">Left Light</span></span>
               <div class="channel-btns">
+                <button class="mini-btn" onclick="triggerSlotUpload('left')" title="Load custom image for this slot">📁</button>
                 <button class="mini-btn" id="btn-solo-1" onclick="toggleSolo(1)" title="Solo Channel">S</button>
                 <button class="mini-btn" id="btn-mute-1" onclick="toggleMute(1)" title="Mute Channel">M</button>
               </div>
@@ -549,12 +687,13 @@
         <!-- 2: Right Light -->
         <div class="channel-card" id="card-2">
           <div class="channel-thumb-wrap" onclick="toggleSolo(2)" title="Click thumbnail to Solo channel">
-            <img src="demo/demo_Right.webp" alt="Right Light Pass">
+            <img id="thumb-right" src="demo/demo_Right.webp" alt="Light 3">
           </div>
           <div class="channel-body">
             <div class="channel-header">
-              <span class="channel-title"><span class="channel-icon" style="background:#f472b6;"></span>Right Light</span>
+              <span class="channel-title"><span class="channel-icon" style="background:#f472b6;"></span><span id="title-2">Right Light</span></span>
               <div class="channel-btns">
+                <button class="mini-btn" onclick="triggerSlotUpload('right')" title="Load custom image for this slot">📁</button>
                 <button class="mini-btn" id="btn-solo-2" onclick="toggleSolo(2)" title="Solo Channel">S</button>
                 <button class="mini-btn" id="btn-mute-2" onclick="toggleMute(2)" title="Mute Channel">M</button>
               </div>
@@ -580,12 +719,13 @@
         <!-- 3: Lamp -->
         <div class="channel-card" id="card-3">
           <div class="channel-thumb-wrap" onclick="toggleSolo(3)" title="Click thumbnail to Solo channel">
-            <img src="demo/demo_Lamp.webp" alt="Lamp Pass">
+            <img id="thumb-lamp" src="demo/demo_Lamp.webp" alt="Light 4">
           </div>
           <div class="channel-body">
             <div class="channel-header">
-              <span class="channel-title"><span class="channel-icon" style="background:#ff8c42;"></span>Lamp / Fixture</span>
+              <span class="channel-title"><span class="channel-icon" style="background:#ff8c42;"></span><span id="title-3">Lamp / Fixture</span></span>
               <div class="channel-btns">
+                <button class="mini-btn" onclick="triggerSlotUpload('lamp')" title="Load custom image for this slot">📁</button>
                 <button class="mini-btn" id="btn-solo-3" onclick="toggleSolo(3)" title="Solo Channel">S</button>
                 <button class="mini-btn" id="btn-mute-3" onclick="toggleMute(3)" title="Mute Channel">M</button>
               </div>
@@ -611,12 +751,13 @@
         <!-- 4: Specular Boost -->
         <div class="channel-card" id="card-4">
           <div class="channel-thumb-wrap" onclick="toggleSolo(4)" title="Click thumbnail to Solo channel">
-            <img src="demo/demo_specular_reflection_lighting.webp" alt="Specular Boost Pass">
+            <img id="thumb-specular" src="demo/demo_specular_reflection_lighting.webp" alt="Specular Boost">
           </div>
           <div class="channel-body">
             <div class="channel-header">
-              <span class="channel-title"><span class="channel-icon" style="background:#a78bfa;"></span>Specular Boost</span>
+              <span class="channel-title"><span class="channel-icon" style="background:#a78bfa;"></span><span id="title-4">Specular Boost</span></span>
               <div class="channel-btns">
+                <button class="mini-btn" onclick="triggerSlotUpload('specular')" title="Load custom Specular pass">📁</button>
                 <button class="mini-btn" id="btn-solo-4" onclick="toggleSolo(4)" title="Solo Channel">S</button>
                 <button class="mini-btn" id="btn-mute-4" onclick="toggleMute(4)" title="Mute Channel">M</button>
               </div>
@@ -625,7 +766,7 @@
               <span class="control-label">Boost</span>
               <input type="range" class="slider" id="slider-int-4" min="0" max="200" value="0" oninput="updateIntensity(4, this.value)">
               <span class="value-tag" id="val-int-4">0%</span>
-              <button class="reset-single-btn" onclick="resetSingleLight(4)" title="Reset to 100% / Default">↺</button>
+              <button class="reset-single-btn" onclick="resetSingleLight(4)" title="Reset to 100% / 0%">↺</button>
             </div>
           </div>
         </div>
@@ -661,7 +802,7 @@
         </div>
 
         <div class="fx-group">
-          <div class="fx-title"><span>✨ Highlight Bloom</span></div>
+          <div class="fx-title"><span>✨ Optical Multi-Mip Bloom</span></div>
           <div class="control-row">
             <span class="control-label">Intensity</span>
             <input type="range" class="slider" id="sliderBloom" min="0" max="100" value="0" oninput="updateBloom(this.value)">
@@ -687,10 +828,10 @@
         </div>
       </div>
 
-      <!-- Tab 3: Pass Inspector -->
+      <!-- Tab 3: Pass Inspector & Custom AOV Upload -->
       <div class="tab-content" id="tab-inspector">
         <p style="font-size:11px; color:var(--text-muted); line-height:1.4;">
-          Studio AOV Inspector: Isolate raw geometry, shading, and auxiliary render channels in real-time.
+          Studio AOV Inspector: Isolate raw geometry, shading, and auxiliary render channels or replace individual AOV maps.
         </p>
         <div class="diag-selector">
           <button class="diag-btn active" onclick="setInspectorMode(0)">Beauty LightMix</button>
@@ -699,17 +840,36 @@
           <button class="diag-btn" onclick="setInspectorMode(3)">Material ID</button>
           <button class="diag-btn" onclick="setInspectorMode(4)">Z-Depth Pass</button>
         </div>
+
+        <div class="aov-upload-list">
+          <div class="aov-row">
+            <span>🎯 Z-Depth Map (8/16-bit Grayscale)</span>
+            <button class="mini-btn" onclick="triggerSlotUpload('depth')">📁 Replace</button>
+          </div>
+          <div class="aov-row">
+            <span>🧭 Surface Normals Pass</span>
+            <button class="mini-btn" onclick="triggerSlotUpload('normals')">📁 Replace</button>
+          </div>
+          <div class="aov-row">
+            <span>🎨 Albedo / Diffuse Pass</span>
+            <button class="mini-btn" onclick="triggerSlotUpload('albedo')">📁 Replace</button>
+          </div>
+          <div class="aov-row">
+            <span>🧩 Material / Object ID Pass</span>
+            <button class="mini-btn" onclick="triggerSlotUpload('matId')">📁 Replace</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Footer -->
   <footer>
-    <div>PolyLightMix v1.2 • WebGL2 Linear sRGB Compositing & Trilinear Mipmap Pipeline</div>
+    <div>PolyLightMix v1.4 • WebGL2 Mip-Pyramid Bloom, 56-Tap Bokeh & Smart Pass Loader</div>
     <div>3D Visualization & CGI: <a href="https://www.polygonmanufaktur.de" target="_blank" rel="noopener" class="footer-link">Polygon Manufaktur</a></div>
   </footer>
 
-  <!-- WebGL Shader & Engine -->
+  <!-- WebGL2 Shader & Engine -->
   <script>
     const DEMO_PATHS = {
       front: 'demo/demo_Front.webp',
@@ -723,7 +883,8 @@
       matId: 'demo/demo_material_id.webp'
     };
 
-    // Exact neutral 6500K + Planckian locus approximation
+    const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=';
+
     function kelvinToRGB(kelvin) {
       const k = parseFloat(kelvin);
       if (Math.abs(k - 6500) < 10) return [1.0, 1.0, 1.0];
@@ -745,56 +906,57 @@
       ];
     }
 
-    // Default initial values
-    const DEFAULT_INTENSITIES = [100, 100, 100, 100, 0]; // 4 lights at 100%, Specular Boost at 0%
+    const DEFAULT_INTENSITIES = [100, 100, 100, 100, 0];
 
     const state = {
       lights: [
-        { name: 'Front', intensity: 1.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false },
-        { name: 'Left', intensity: 1.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false },
-        { name: 'Right', intensity: 1.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false },
-        { name: 'Lamp', intensity: 1.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false },
-        { name: 'Specular Boost', intensity: 0.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false }
+        { key: 'front', name: 'Front Light', intensity: 1.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false },
+        { key: 'left', name: 'Left Light', intensity: 1.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false },
+        { key: 'right', name: 'Right Light', intensity: 1.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false },
+        { key: 'lamp', name: 'Lamp / Fixture', intensity: 1.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false },
+        { key: 'specular', name: 'Specular Boost', intensity: 0.0, kelvin: 6500, rgb: [1, 1, 1], muted: false, solo: false }
       ],
       dof: { focalDepth: 0.45, aperture: 0.0, blades: 0 },
       bloom: 0.0,
       exposure: 1.0,
       aces: 0.0,
       inspectorMode: 0,
-      autopilot: false, // Disabled on load (#11)
+      autopilot: false,
+      isCustomScene: false,
       nativeWidth: 1920,
       nativeHeight: 1080
     };
 
-    // Offscreen canvas to sample true pixel depth from demo_depth.png on click
     const depthSamplerCanvas = document.createElement('canvas');
     const depthSamplerCtx = depthSamplerCanvas.getContext('2d', { willReadFrequently: true });
     let depthImageLoaded = false;
 
     const canvas = document.getElementById('glCanvas');
-    // Prefer WebGL2 for hardware NPOT Mipmaps & Trilinear Downscaling (#14)
-    const gl = canvas.getContext('webgl2', { antialias: true, powerPreference: 'high-performance' })
-            || canvas.getContext('webgl', { antialias: true });
-    const isWebGL2 = (typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext);
-    const anisoExt = gl ? (
-      gl.getExtension('EXT_texture_filter_anisotropic') ||
-      gl.getExtension('MOZ_EXT_texture_filter_anisotropic') ||
-      gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic')
-    ) : null;
+    const gl = canvas.getContext('webgl2', { antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
 
-    const vsSource = `
-      attribute vec2 a_position;
-      varying vec2 v_uv;
+    if (!gl) {
+      alert('WebGL2 is required for hardware mipmap bloom and bokeh shaders. Please use a modern browser.');
+    }
+
+    const anisoExt = gl.getExtension('EXT_texture_filter_anisotropic') ||
+                     gl.getExtension('MOZ_EXT_texture_filter_anisotropic') ||
+                     gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic');
+
+    // WebGL2 GLSL ES 3.00 Vertex Shader
+    const vsSource = `#version 300 es
+      in vec2 a_position;
+      out vec2 v_uv;
       void main() {
         v_uv = vec2((a_position.x + 1.0) * 0.5, 1.0 - (a_position.y + 1.0) * 0.5);
         gl_Position = vec4(a_position, 0.0, 1.0);
       }
     `;
 
-    // Fragment Shader with exact IEC sRGB transfer curve, Polygonal Aperture Bokeh & Neutral ACES mix
-    const fsSource = `
+    // WebGL2 GLSL ES 3.00 Fragment Shader with Multi-Octave Mipmap Pyramid Bloom & 56-Tap Bokeh
+    const fsSource = `#version 300 es
       precision highp float;
-      varying vec2 v_uv;
+      in vec2 v_uv;
+      out vec4 outColor;
 
       uniform sampler2D u_texFront;
       uniform sampler2D u_texLeft;
@@ -806,18 +968,18 @@
       uniform sampler2D u_texAlbedo;
       uniform sampler2D u_texMatId;
 
-      uniform vec4 u_lightParams[5]; // rgb, intensity
-      uniform vec3 u_dof; // x = focalDepth, y = aperture, z = bladeCount (0 = circular)
+      uniform vec4 u_lightParams[5];
+      uniform vec3 u_dof; // x = focalDepth, y = aperture, z = bladeCount
       uniform float u_bloom;
       uniform float u_exposure;
       uniform float u_aces;
-      uniform vec2 u_aspect; // aspect ratio correction for bokeh kernel
+      uniform vec2 u_aspect;
       uniform int u_inspector;
 
       const float PI = 3.14159265359;
       const float TWO_PI = 6.28318530718;
 
-      // Exact IEC 61966-2-1 sRGB to Linear (#9)
+      // Exact IEC 61966-2-1 sRGB to Linear
       vec3 srgbToLinear(vec3 srgb) {
         vec3 cutoff = step(vec3(0.04045), srgb);
         vec3 higher = pow((srgb + vec3(0.055)) / vec3(1.055), vec3(2.4));
@@ -825,7 +987,7 @@
         return mix(lower, higher, cutoff);
       }
 
-      // Exact Linear to IEC 61966-2-1 sRGB (#9)
+      // Exact Linear to IEC 61966-2-1 sRGB
       vec3 linearToSrgb(vec3 linear) {
         linear = max(linear, vec3(0.0));
         vec3 cutoff = step(vec3(0.0031308), linear);
@@ -843,18 +1005,36 @@
         return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
       }
 
+      // Standard hardware-interpolated mip sample
       vec3 sampleLightMixLinear(vec2 uv) {
-        vec3 f = srgbToLinear(texture2D(u_texFront, uv).rgb) * u_lightParams[0].rgb * u_lightParams[0].a;
-        vec3 l = srgbToLinear(texture2D(u_texLeft, uv).rgb) * u_lightParams[1].rgb * u_lightParams[1].a;
-        vec3 r = srgbToLinear(texture2D(u_texRight, uv).rgb) * u_lightParams[2].rgb * u_lightParams[2].a;
-        vec3 lamp = srgbToLinear(texture2D(u_texLamp, uv).rgb) * u_lightParams[3].rgb * u_lightParams[3].a;
-        vec3 spec = srgbToLinear(texture2D(u_texSpec, uv).rgb) * u_lightParams[4].rgb * u_lightParams[4].a;
+        vec3 f = srgbToLinear(texture(u_texFront, uv).rgb) * u_lightParams[0].rgb * u_lightParams[0].a;
+        vec3 l = srgbToLinear(texture(u_texLeft, uv).rgb) * u_lightParams[1].rgb * u_lightParams[1].a;
+        vec3 r = srgbToLinear(texture(u_texRight, uv).rgb) * u_lightParams[2].rgb * u_lightParams[2].a;
+        vec3 lamp = srgbToLinear(texture(u_texLamp, uv).rgb) * u_lightParams[3].rgb * u_lightParams[3].a;
+        vec3 spec = srgbToLinear(texture(u_texSpec, uv).rgb) * u_lightParams[4].rgb * u_lightParams[4].a;
         return f + l + r + lamp + spec;
       }
 
-      // Polygonal aperture shape modulation (#10)
+      // Explicit Mipmap LOD sample for ultra-smooth Bloom & heavy DoF
+      vec3 sampleLightMixLinearLod(vec2 uv, float lod) {
+        vec3 f = srgbToLinear(textureLod(u_texFront, uv, lod).rgb) * u_lightParams[0].rgb * u_lightParams[0].a;
+        vec3 l = srgbToLinear(textureLod(u_texLeft, uv, lod).rgb) * u_lightParams[1].rgb * u_lightParams[1].a;
+        vec3 r = srgbToLinear(textureLod(u_texRight, uv, lod).rgb) * u_lightParams[2].rgb * u_lightParams[2].a;
+        vec3 lamp = srgbToLinear(textureLod(u_texLamp, uv, lod).rgb) * u_lightParams[3].rgb * u_lightParams[3].a;
+        vec3 spec = srgbToLinear(textureLod(u_texSpec, uv, lod).rgb) * u_lightParams[4].rgb * u_lightParams[4].a;
+        return f + l + r + lamp + spec;
+      }
+
+      // Soft-knee highlight extraction (prevents harsh contour rings)
+      vec3 extractSoftHighlights(vec3 col) {
+        float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+        float knee = smoothstep(0.28, 1.35, lum);
+        return col * (knee * knee);
+      }
+
+      // Polygonal aperture blade shaping
       float polygonRadius(float angle, float blades) {
-        if (blades < 3.0) return 1.0; // Circular
+        if (blades < 3.0) return 1.0;
         float sector = TWO_PI / blades;
         float halfSector = sector * 0.5;
         float localAngle = mod(angle + PI, sector) - halfSector;
@@ -863,71 +1043,101 @@
 
       void main() {
         if (u_inspector == 1) {
-          gl_FragColor = texture2D(u_texNormals, v_uv);
+          outColor = texture(u_texNormals, v_uv);
           return;
         } else if (u_inspector == 2) {
-          gl_FragColor = texture2D(u_texAlbedo, v_uv);
+          outColor = texture(u_texAlbedo, v_uv);
           return;
         } else if (u_inspector == 3) {
-          gl_FragColor = texture2D(u_texMatId, v_uv);
+          outColor = texture(u_texMatId, v_uv);
           return;
         } else if (u_inspector == 4) {
-          float d = texture2D(u_texDepth, v_uv).r;
-          gl_FragColor = vec4(vec3(d), 1.0);
+          float d = texture(u_texDepth, v_uv).r;
+          outColor = vec4(vec3(d), 1.0);
           return;
         }
 
-        float centerDepth = texture2D(u_texDepth, v_uv).r;
-        float coc = abs(centerDepth - u_dof.x) * u_dof.y * 0.022;
+        // 1. Depth of Field (3.3x stronger max CoC + 56-Tap Golden Spiral + Dynamic Mip Filtering)
+        float centerDepth = texture(u_texDepth, v_uv).r;
+        float coc = abs(centerDepth - u_dof.x) * (u_dof.y * u_dof.y * 0.55 + u_dof.y * 0.45) * 0.072;
 
         vec3 accum = vec3(0.0);
 
         if (coc < 0.00025) {
-          // Crisp unblurred single sample when DoF is 0% (#8)
           accum = sampleLightMixLinear(v_uv);
         } else {
-          // 24-Tap Golden Angle Spiral with Polygonal Aperture Blades (#10)
-          const int SAMPLES = 24;
+          const int DOF_SAMPLES = 56;
           float goldenAngle = 2.39996323;
           float totalWeight = 0.0;
+          // Pre-filter mipmap level proportional to circle of confusion to eliminate dot stippling
+          float baseMip = clamp(log2(coc * 135.0), 0.0, 2.8);
 
-          for (int i = 0; i < SAMPLES; i++) {
+          for (int i = 0; i < DOF_SAMPLES; i++) {
             float fi = float(i);
-            float rNorm = sqrt((fi + 0.5) / float(SAMPLES));
+            float rNorm = sqrt((fi + 0.5) / float(DOF_SAMPLES));
             float theta = fi * goldenAngle;
 
             float polyShape = polygonRadius(theta, u_dof.z);
             vec2 offset = vec2(cos(theta), sin(theta)) * rNorm * polyShape * coc * u_aspect;
             vec2 sampleUv = clamp(v_uv + offset, 0.0, 1.0);
 
-            vec3 sCol = sampleLightMixLinear(sampleUv);
-            // Slight bokeh highlight weighting
+            // Depth bleeding guard: prevent foreground sharp pixels from bleeding into background blur
+            float sampleDepth = textureLod(u_texDepth, sampleUv, 0.0).r;
+            float sampleCoc = abs(sampleDepth - u_dof.x) * u_dof.y * 0.072;
+            float depthWeight = smoothstep(0.0, 0.004, sampleCoc + 0.002);
+
+            vec3 sCol = sampleLightMixLinearLod(sampleUv, baseMip * rNorm);
             float lum = dot(sCol, vec3(0.2126, 0.7152, 0.0722));
-            float w = 1.0 + max(0.0, lum - 0.7) * 1.5;
+            // Optical bokeh highlight boost
+            float bokehBoost = 1.0 + max(0.0, lum - 0.65) * 2.4;
+            float w = bokehBoost * mix(0.35, 1.0, depthWeight);
 
             accum += sCol * w;
             totalWeight += w;
           }
-          accum /= totalWeight;
+          accum /= max(0.0001, totalWeight);
         }
 
-        // Multi-tap Highlight Bloom (#13)
+        // 2. Multi-Octave Mipmap Pyramid Optical Bloom (Buttery smooth, wide Gaussian halo)
         if (u_bloom > 0.001) {
-          vec3 bloomSum = vec3(0.0);
-          for (int b = 0; b < 8; b++) {
-            float ang = float(b) * 0.785398;
-            vec2 bOff = vec2(cos(ang), sin(ang)) * 0.009 * u_aspect;
-            vec3 bSample = sampleLightMixLinear(clamp(v_uv + bOff, 0.0, 1.0));
-            bloomSum += max(bSample - vec3(0.72), vec3(0.0));
+          const int BLOOM_TAPS = 28;
+          float goldenAngle = 2.39996323;
+          // Core pre-filtered glow from hardware mip levels 2.5 and 4.5
+          vec3 bloomAccum = extractSoftHighlights(sampleLightMixLinearLod(v_uv, 2.5)) * 1.4
+                          + extractSoftHighlights(sampleLightMixLinearLod(v_uv, 4.5)) * 1.2;
+          float bloomWeight = 2.6;
+
+          float maxBloomRadius = 0.095; // 9.5% screen width wide optical diffusion
+
+          for (int b = 0; b < BLOOM_TAPS; b++) {
+            float fb = float(b);
+            float t = (fb + 0.5) / float(BLOOM_TAPS);
+            // Non-linear radial distribution (dense smooth core + wide atmospheric falloff)
+            float rNorm = pow(t, 1.45);
+            float theta = fb * goldenAngle;
+
+            vec2 bOff = vec2(cos(theta), sin(theta)) * (rNorm * maxBloomRadius) * u_aspect;
+            vec2 bUv = clamp(v_uv + bOff, 0.0, 1.0);
+
+            // Sample progressively higher hardware mipmap levels (LOD 2.0 to 6.2) for zero sharp edges
+            float mipLevel = 2.0 + rNorm * 4.2;
+            vec3 bCol = extractSoftHighlights(sampleLightMixLinearLod(bUv, mipLevel));
+
+            // Smooth Gaussian bell weight
+            float w = exp(-t * 3.1);
+            bloomAccum += bCol * w;
+            bloomWeight += w;
           }
-          accum += (bloomSum / 8.0) * (u_bloom * 2.2);
+
+          vec3 smoothGlow = bloomAccum / bloomWeight;
+          accum += smoothGlow * (u_bloom * u_bloom * 1.8 + u_bloom * 1.1);
         }
 
-        // Exposure & optional ACES Filmic Rolloff (#12)
+        // 3. Exposure & Optional ACES Filmic Tonemapping
         accum *= u_exposure;
         vec3 mapped = mix(accum, acesFilm(accum), u_aces);
 
-        gl_FragColor = vec4(linearToSrgb(mapped), 1.0);
+        outColor = vec4(linearToSrgb(mapped), 1.0);
       }
     `;
 
@@ -973,62 +1183,261 @@
       { key: 'matId', uniform: 'u_texMatId', unit: 8, path: DEMO_PATHS.matId }
     ];
 
-    function isPowerOf2(value) {
-      return (value & (value - 1)) === 0;
-    }
-
-    function createPlaceholderTexture(unit) {
-      const tex = gl.createTexture();
+    function setSolidColorTexture(unit, tex, r, g, b) {
       gl.activeTexture(gl.TEXTURE0 + unit);
       gl.bindTexture(gl.TEXTURE_2D, tex);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
-      return tex;
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([r, g, b, 255]));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     }
 
-    textureSlots.forEach(slot => {
-      textures[slot.key] = createPlaceholderTexture(slot.unit);
-      gl.uniform1i(gl.getUniformLocation(program, slot.uniform), slot.unit);
+    function uploadImageToSlot(slotKey, img, customLabel) {
+      const slot = textureSlots.find(s => s.key === slotKey);
+      if (!slot) return;
 
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        gl.activeTexture(gl.TEXTURE0 + slot.unit);
-        gl.bindTexture(gl.TEXTURE_2D, textures[slot.key]);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      gl.activeTexture(gl.TEXTURE0 + slot.unit);
+      gl.bindTexture(gl.TEXTURE_2D, textures[slot.key]);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
 
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
-        // Hardware Trilinear Mipmapping + Anisotropic Filtering for smooth downscaling (#14)
-        if (isWebGL2 || (isPowerOf2(img.width) && isPowerOf2(img.height))) {
-          gl.generateMipmap(gl.TEXTURE_2D);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-          if (anisoExt) {
-            const maxAniso = gl.getParameter(anisoExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
-            gl.texParameterf(gl.TEXTURE_2D, anisoExt.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, maxAniso));
-          }
-        } else {
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        }
+      // Generate hardware mipmap chain for smooth downscaling AND Multi-Octave Bloom
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      if (anisoExt) {
+        const maxAniso = gl.getParameter(anisoExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+        gl.texParameterf(gl.TEXTURE_2D, anisoExt.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, maxAniso));
+      }
 
-        if (slot.key === 'front') {
-          state.nativeWidth = img.width || 1920;
-          state.nativeHeight = img.height || 1080;
+      // Update UI thumbnail & title if it's a light/specular slot
+      const thumbEl = document.getElementById('thumb-' + slotKey);
+      if (thumbEl) thumbEl.src = img.src;
+
+      const lightIdx = state.lights.findIndex(l => l.key === slotKey);
+      if (lightIdx !== -1 && customLabel) {
+        state.lights[lightIdx].name = customLabel;
+        const titleEl = document.getElementById('title-' + lightIdx);
+        if (titleEl) titleEl.innerText = customLabel;
+      }
+
+      if (slotKey === 'front' || state.isCustomScene) {
+        if (img.width > 16 && img.height > 16) {
+          state.nativeWidth = img.width;
+          state.nativeHeight = img.height;
           resizeViewportCanvas();
         }
-        if (slot.key === 'depth') {
-          depthSamplerCanvas.width = img.width;
-          depthSamplerCanvas.height = img.height;
-          depthSamplerCtx.drawImage(img, 0, 0);
-          depthImageLoaded = true;
-        }
-        requestRender();
-      };
-      img.src = slot.path;
+      }
+
+      if (slotKey === 'depth') {
+        depthSamplerCanvas.width = img.width;
+        depthSamplerCanvas.height = img.height;
+        depthSamplerCtx.drawImage(img, 0, 0);
+        depthImageLoaded = true;
+      }
+
+      requestRender();
+    }
+
+    // Initialize Textures (or start in Blank Studio Mode if ?mode=blank is set in URL)
+    const urlParams = new URLSearchParams(window.location.search);
+    const startBlank = urlParams.get('mode') === 'blank';
+
+    textureSlots.forEach(slot => {
+      textures[slot.key] = gl.createTexture();
+      const defaultVal = (slot.key === 'depth') ? 115 : 0;
+      setSolidColorTexture(slot.unit, textures[slot.key], defaultVal, defaultVal, defaultVal);
+      gl.uniform1i(gl.getUniformLocation(program, slot.uniform), slot.unit);
+
+      if (!startBlank) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => uploadImageToSlot(slot.key, img, null);
+        img.src = slot.path;
+      }
     });
 
-    // Dynamic DPR-aware resize so GPU Trilinear Mipmapping handles window downscaling (#14)
+    if (startBlank) {
+      setTimeout(() => clearToBlankStudio(), 50);
+    }
+
+    // Clear all textures to Blank Studio Mode for custom user testing
+    function clearToBlankStudio() {
+      stopAutopilot();
+      state.isCustomScene = true;
+      depthImageLoaded = false;
+
+      textureSlots.forEach(slot => {
+        const val = (slot.key === 'depth') ? 115 : 0;
+        setSolidColorTexture(slot.unit, textures[slot.key], val, val, val);
+        const thumbEl = document.getElementById('thumb-' + slot.key);
+        if (thumbEl) thumbEl.src = TRANSPARENT_PIXEL;
+      });
+
+      const defaultLabels = ['Light Slot 1', 'Light Slot 2', 'Light Slot 3', 'Light Slot 4', 'Specular Boost'];
+      state.lights.forEach((l, i) => {
+        l.name = defaultLabels[i];
+        document.getElementById('title-' + i).innerText = defaultLabels[i];
+      });
+
+      const overlay = document.getElementById('dropOverlay');
+      overlay.classList.add('visible', 'blank-mode');
+      requestRender();
+      showToast('Scene cleared – Drop your own render passes or click to browse.');
+    }
+
+    // Smart Filename Parser & Batch File Loader
+    function cleanLabelFromFilename(filename) {
+      let base = filename.replace(/\.[^/.]+$/, ''); // strip extension
+      base = base.replace(/^(demo_|render_|pass_|light_)/i, '');
+      base = base.replace(/[_-]+/g, ' ').trim();
+      return base.charAt(0).toUpperCase() + base.slice(1) || 'Custom Light';
+    }
+
+    function handleBatchFiles(fileList) {
+      if (!fileList || fileList.length === 0) return;
+      stopAutopilot();
+
+      // If user drops custom files while demo is still active, clear demo textures first so they don't mix!
+      if (!state.isCustomScene) {
+        clearToBlankStudio();
+      }
+
+      const overlay = document.getElementById('dropOverlay');
+      overlay.classList.remove('visible', 'blank-mode');
+
+      const files = Array.from(fileList).filter(f => f.type.startsWith('image/') || /\.(webp|png|jpe?g)$/i.test(f.name));
+      const usedLightSlots = new Set();
+      const unassignedLightFiles = [];
+      let loadedCount = 0;
+
+      files.forEach(file => {
+        const lower = file.name.toLowerCase();
+
+        if (lower.includes('depth') || lower.includes('zdepth') || lower.includes('mist')) {
+          loadFileIntoSlot(file, 'depth', null);
+          loadedCount++;
+        } else if (lower.includes('normal')) {
+          loadFileIntoSlot(file, 'normals', null);
+          loadedCount++;
+        } else if (lower.includes('albedo') || lower.includes('diffuse') || lower.includes('basecolor')) {
+          loadFileIntoSlot(file, 'albedo', null);
+          loadedCount++;
+        } else if (lower.includes('material_id') || lower.includes('mat_id') || lower.includes('object_id') || lower.includes('crypto') || lower.includes('_id')) {
+          loadFileIntoSlot(file, 'matId', null);
+          loadedCount++;
+        } else if (lower.includes('spec') || lower.includes('refl') || lower.includes('gloss')) {
+          loadFileIntoSlot(file, 'specular', 'Specular Boost');
+          loadedCount++;
+        } else if (lower.includes('front') || lower.includes('key')) {
+          usedLightSlots.add('front');
+          loadFileIntoSlot(file, 'front', cleanLabelFromFilename(file.name));
+          loadedCount++;
+        } else if (lower.includes('left') || lower.includes('fill')) {
+          usedLightSlots.add('left');
+          loadFileIntoSlot(file, 'left', cleanLabelFromFilename(file.name));
+          loadedCount++;
+        } else if (lower.includes('right') || lower.includes('rim') || lower.includes('back')) {
+          usedLightSlots.add('right');
+          loadFileIntoSlot(file, 'right', cleanLabelFromFilename(file.name));
+          loadedCount++;
+        } else if (lower.includes('lamp') || lower.includes('sun') || lower.includes('sky') || lower.includes('env') || lower.includes('interior')) {
+          usedLightSlots.add('lamp');
+          loadFileIntoSlot(file, 'lamp', cleanLabelFromFilename(file.name));
+          loadedCount++;
+        } else {
+          unassignedLightFiles.push(file);
+        }
+      });
+
+      // Assign any remaining custom named light files to free light slots 0..3
+      const lightKeys = ['front', 'left', 'right', 'lamp'];
+      unassignedLightFiles.forEach(file => {
+        const freeKey = lightKeys.find(k => !usedLightSlots.has(k));
+        if (freeKey) {
+          usedLightSlots.add(freeKey);
+          loadFileIntoSlot(file, freeKey, cleanLabelFromFilename(file.name));
+          loadedCount++;
+        }
+      });
+
+      showToast(`Loaded ${loadedCount} custom pass(es) into WebGL compositor.`);
+    }
+
+    function loadFileIntoSlot(file, slotKey, label) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => uploadImageToSlot(slotKey, img, label);
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Single Slot Upload Handler
+    let pendingSingleSlot = null;
+    function triggerSlotUpload(slotKey) {
+      pendingSingleSlot = slotKey;
+      const input = document.getElementById('singleSlotInput');
+      input.value = '';
+      input.click();
+    }
+
+    function handleSingleSlotFile(fileList) {
+      if (!fileList || !fileList[0] || !pendingSingleSlot) return;
+      stopAutopilot();
+      state.isCustomScene = true;
+      document.getElementById('dropOverlay').classList.remove('visible', 'blank-mode');
+      const file = fileList[0];
+      loadFileIntoSlot(file, pendingSingleSlot, cleanLabelFromFilename(file.name));
+      showToast(`Updated [${pendingSingleSlot.toUpperCase()}] with "${file.name}"`);
+    }
+
+    // Global Drag & Drop Events
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      document.getElementById('dropOverlay').classList.add('visible');
+    });
+
+    window.addEventListener('dragleave', (e) => {
+      if (e.relatedTarget === null || !document.body.contains(e.relatedTarget)) {
+        const overlay = document.getElementById('dropOverlay');
+        if (!overlay.classList.contains('blank-mode')) {
+          overlay.classList.remove('visible');
+        }
+      }
+    });
+
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const overlay = document.getElementById('dropOverlay');
+      if (!overlay.classList.contains('blank-mode')) {
+        overlay.classList.remove('visible');
+      }
+      if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+        handleBatchFiles(e.dataTransfer.files);
+      }
+    });
+
+    function showToast(msg) {
+      const t = document.getElementById('toastBanner');
+      t.innerText = msg;
+      t.style.display = 'block';
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => { t.style.display = 'none'; }, 3800);
+    }
+
+    // Export full-res PNG Snapshot
+    function exportSnapshot() {
+      render();
+      const link = document.createElement('a');
+      link.download = 'PolyLightMix_Render_' + Date.now() + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('Saved PNG snapshot.');
+    }
+
     function resizeViewportCanvas() {
       const container = document.getElementById('viewport');
       const availW = Math.max(200, container.clientWidth - 24);
@@ -1045,7 +1454,6 @@
         cssH = Math.round(cssW / imgAspect);
       }
 
-      // Cap internal render resolution to native size or 2x DPR for crisp supersampling
       const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
       canvas.style.width = cssW + 'px';
       canvas.style.height = cssH + 'px';
@@ -1104,7 +1512,6 @@
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
-    // Central UI synchronization (#1 & #2)
     function syncUIWithState() {
       const hasSolo = state.lights.some(l => l.solo);
       state.lights.forEach((l, i) => {
@@ -1151,7 +1558,6 @@
       });
     }
 
-    // UI Controls & Individual Reset Handlers (#5)
     function updateIntensity(idx, val) {
       stopAutopilot();
       state.lights[idx].intensity = parseFloat(val) / 100.0;
@@ -1161,7 +1567,6 @@
 
     function resetSingleLight(idx) {
       stopAutopilot();
-      // Reset to 100% as requested (#5), or toggle between 0% and 100% on Specular Boost
       const targetPct = (idx === 4 && state.lights[4].intensity === 1.0) ? 0 : 100;
       state.lights[idx].intensity = targetPct / 100.0;
       state.lights[idx].kelvin = 6500;
@@ -1239,7 +1644,6 @@
       document.getElementById('tab-' + name).classList.add('active');
     }
 
-    // True Z-Depth Pixel Sampling on Click
     canvas.addEventListener('click', (e) => {
       stopAutopilot();
       const rect = canvas.getBoundingClientRect();
@@ -1248,7 +1652,7 @@
 
       const reticle = document.getElementById('reticle');
       reticle.style.display = 'none';
-      void reticle.offsetWidth; // Restart animation
+      void reticle.offsetWidth;
       reticle.style.left = e.clientX + 'px';
       reticle.style.top = e.clientY + 'px';
       reticle.style.display = 'block';
@@ -1262,7 +1666,6 @@
         state.dof.focalDepth = normY;
       }
 
-      // If DoF blur is currently 0%, nudge it to 35% so the user immediately sees the focus shift
       if (state.dof.aperture < 0.02) {
         state.dof.aperture = 0.35;
       }
@@ -1271,7 +1674,6 @@
       requestRender();
     });
 
-    // Showroom Autopilot (#2 & #11: moves sliders in real-time and runs ~33% faster)
     let autoAnimId = null;
     let lastTime = 0;
     let autoPhase = 0;
@@ -1299,7 +1701,6 @@
       const dt = (now - lastTime) / 1000.0;
       lastTime = now;
 
-      // 0.85 rad/s is ~35% faster than previous 0.60 rad/s (#11)
       autoPhase += dt * 0.85;
 
       state.lights[0].intensity = 0.75 + Math.sin(autoPhase) * 0.65;
@@ -1321,7 +1722,6 @@
       document.getElementById('bannerDemo').style.display = 'none';
     }
 
-    // Complete Reset (#1, #3, #6, #8, #12, #13)
     function resetAll() {
       stopAutopilot();
       state.lights.forEach((l, i) => {
@@ -1343,7 +1743,6 @@
       requestRender();
     }
 
-    // Initial Startup
     resizeViewportCanvas();
     syncUIWithState();
     requestRender();
