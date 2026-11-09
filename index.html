@@ -1,0 +1,2237 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PolyLightMix – Interactive 3D Render Relight & Post-FX Studio | Polygon Manufaktur</title>
+  <meta name="description" content="Kostenloses Online 3D-Render Relight & LightMix Tool für Architekten, 3D-Artists und Visualisierer. Lichtquellen in Echtzeit via Linear ADD mischen, Farbtemperatur (Kelvin), Z-Depth DoF & ACES Tonemapping im Browser anpassen." />
+
+  <!-- Schema.org SoftwareApplication JSON-LD für SEO & Tool-Directories (AlternativeTo, Uneed, GitHub) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "PolyLightMix – 3D Render Relight Studio",
+    "operatingSystem": "Web Browser (WebGL / HTML5)",
+    "applicationCategory": "DesignApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "EUR"
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "Polygon Manufaktur",
+      "url": "https://polygonmanufaktur.de"
+    }
+  }
+  </script>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            studio: {
+              bg: '#0b0d11',
+              panel: '#13161c',
+              card: '#1a1e26',
+              cardHover: '#212631',
+              border: '#282e3b',
+              accent: '#f59e0b',
+              cyan: '#38bdf8'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Studio Scrollbars & Sliders (Indigo / Corona Dark UI Look) */
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+    body {
+      background-color: #0b0d11;
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #13161c;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #2e3646;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Custom Range Sliders */
+    input[type="range"].studio-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #0f1116;
+      border: 1px solid #282e3b;
+      border-radius: 999px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+    input[type="range"].studio-slider:hover {
+      border-color: #475569;
+    }
+    input[type="range"].studio-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #f59e0b;
+      border: 2px solid #fff;
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+      cursor: grab;
+      transition: transform 0.1s ease, background-color 0.15s ease;
+    }
+    input[type="range"].studio-slider::-webkit-slider-thumb:active {
+      cursor: grabbing;
+      transform: scale(1.18);
+      background: #fbbf24;
+    }
+    input[type="range"].studio-slider.cyan-slider::-webkit-slider-thumb {
+      background: #38bdf8;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+    }
+
+    /* Animated Focus Ring on Viewport */
+    @keyframes focusPulse {
+      0% { transform: translate(-50%, -50%) scale(1.35); opacity: 1; }
+      70% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.85; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+    }
+    .focus-reticle-anim {
+      animation: focusPulse 1.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Subtle Checkered Backdrop for Viewport */
+    .viewport-grid-bg {
+      background-color: #08090c;
+      background-image: 
+        linear-gradient(45deg, #101319 25%, transparent 25%), 
+        linear-gradient(-45deg, #101319 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #101319 75%), 
+        linear-gradient(-45deg, transparent 75%, #101319 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+
+    /* Demo Pulse Badge */
+    @keyframes demoGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45); }
+      50% { box-shadow: 0 0 14px 3px rgba(245, 158, 11, 0.3); }
+    }
+    .demo-active-pill {
+      animation: demoGlow 2s infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-studio-bg text-slate-200 selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- TOP STUDIO HEADER BAR -->
+  <header class="w-full bg-studio-panel border-b border-studio-border px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 z-20">
+    <!-- Brand & SEO Credit -->
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 border border-amber-400/30">
+        <!-- 3D Cube / Light Rays SVG -->
+        <svg class="w-5 h-5 text-slate-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 12l8-4.5M12 12v9M12 12L4 7.5" />
+        </svg>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold tracking-tight text-white text-base sm:text-lg">PolyLightMix</span>
+          <span class="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-semibold">WebGL Linear 32f</span>
+        </div>
+        <div class="text-xs text-slate-400 flex items-center gap-1.5">
+          <span>Interactive 3D Render Relight Tool by</span>
+          <a href="https://polygonmanufaktur.de" target="_blank" rel="dofollow" class="text-amber-400 hover:text-amber-300 font-medium underline decoration-amber-500/40 underline-offset-2 transition">Polygon Manufaktur</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Mood Presets -->
+    <div class="flex items-center gap-1.5 flex-wrap">
+      <span class="text-[11px] font-mono uppercase tracking-wider text-slate-400 mr-1 hidden xl:inline">Licht-Stimmung:</span>
+      <button onclick="applyPreset('daylight', true)" id="preset-daylight" class="preset-btn px-2.5 py-1.5 rounded-md text-xs font-medium bg-studio-card hover:bg-studio-cardHover border border-studio-border text-slate-200 flex items-center gap-1.5 transition">
+        <span>☀️</span><span>Tag</span>
+      </button>
+      <button onclick="applyPreset('sundowner', true)" id="preset-sundowner" class="preset-btn px-2.5 py-1.5 rounded-md text-xs font-medium bg-studio-card hover:bg-studio-cardHover border border-studio-border text-slate-200 flex items-center gap-1.5 transition">
+        <span>🌅</span><span>Sundowner</span>
+      </button>
+      <button onclick="applyPreset('night', true)" id="preset-night" class="preset-btn px-2.5 py-1.5 rounded-md text-xs font-medium bg-studio-card hover:bg-studio-cardHover border border-studio-border text-slate-200 flex items-center gap-1.5 transition">
+        <span>🌙</span><span>Nacht-Architektur</span>
+      </button>
+      <button onclick="applyPreset('fireplace', true)" id="preset-fireplace" class="preset-btn px-2.5 py-1.5 rounded-md text-xs font-medium bg-studio-card hover:bg-studio-cardHover border border-studio-border text-slate-200 flex items-center gap-1.5 transition">
+        <span>🕯️</span><span>Kamin-Fokus</span>
+      </button>
+      <button onclick="applyPreset('reset', true)" class="px-2.5 py-1.5 rounded-md text-xs font-medium bg-studio-card hover:bg-studio-cardHover border border-studio-border text-slate-400 hover:text-white flex items-center gap-1 transition" title="Alle Lichtquellen auf 100% Nativ zurücksetzen">
+        <span>🔄</span><span class="hidden sm:inline">Reset</span>
+      </button>
+    </div>
+
+    <!-- Right Controls: Auto-Demo Toggle & Snapshot Export -->
+    <div class="flex items-center gap-2">
+      <button id="demoToggleBtn" onclick="toggleAutoDemo()" class="demo-active-pill px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/50 hover:bg-amber-500/30 flex items-center gap-2 transition">
+        <span id="demoStatusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+        <span id="demoBtnLabel">⚡ Auto-Demo läuft (Klicken zum Übernehmen)</span>
+      </button>
+
+      <button onclick="exportBeautyPNG()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 flex items-center gap-1.5 transition" title="Aktuelles Relight-Ergebnis als PNG speichern">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+        </svg>
+        <span class="hidden sm:inline">PNG speichern</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE: SPLIT VIEWPORT (LEFT) + TABBED INSPECTOR (RIGHT) -->
+  <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+
+    <!-- LEFT / CENTER: INTERACTIVE RENDER VIEWPORT -->
+    <section class="flex-1 flex flex-col bg-studio-bg relative min-h-[380px] lg:min-h-0">
+      
+      <!-- Viewport Top Sub-Toolbar (Pass Inspection, Click-to-Focus Info, A/B Original Comparison) -->
+      <div class="bg-studio-panel/90 border-b border-studio-border px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-slate-400 font-mono text-[11px]">PASS-ANSICHT:</span>
+          <div class="inline-flex rounded-md bg-studio-bg p-0.5 border border-studio-border">
+            <button onclick="setRenderPassView('beauty')" id="view-beauty" class="pass-view-btn px-2.5 py-1 rounded text-[11px] font-medium bg-amber-500 text-slate-950 font-semibold transition">Beauty (LightMix)</button>
+            <button onclick="setRenderPassView('depth')" id="view-depth" class="pass-view-btn px-2.5 py-1 rounded text-[11px] font-medium text-slate-400 hover:text-white transition">Z-Depth</button>
+            <button onclick="setRenderPassView('ao')" id="view-ao" class="pass-view-btn px-2.5 py-1 rounded text-[11px] font-medium text-slate-400 hover:text-white transition">Ambient Occlusion</button>
+            <button onclick="setRenderPassView('bloom')" id="view-bloom" class="pass-view-btn px-2.5 py-1 rounded text-[11px] font-medium text-slate-400 hover:text-white transition">Highlights / Bloom</button>
+          </div>
+        </div>
+
+        <!-- Interactive Hint & Hold-to-Compare -->
+        <div class="flex items-center gap-3">
+          <div class="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-400 bg-studio-card px-2.5 py-1 rounded border border-studio-border">
+            <span class="text-sky-400">🎯 Tipp:</span>
+            <span>Ins Bild klicken setzt <strong class="text-slate-200">DoF-Fokuspunkt</strong> via Tiefenkanal</span>
+          </div>
+
+          <button
+            onmousedown="setOriginalCompare(true)"
+            onmouseup="setOriginalCompare(false)"
+            onmouseleave="setOriginalCompare(false)"
+            ontouchstart="setOriginalCompare(true)"
+            ontouchend="setOriginalCompare(false)"
+            class="px-2.5 py-1 rounded bg-studio-card hover:bg-studio-cardHover border border-studio-border text-[11px] font-mono text-slate-300 active:bg-amber-500 active:text-slate-950 transition"
+            title="Gedrückt halten für ungemischten Standard-Render (Alle Layer 100%)">
+            👁️ Original halten
+          </button>
+        </div>
+      </div>
+
+      <!-- Canvas Container with Drag & Drop Overlay & Click-to-Focus Reticle -->
+      <div id="viewportContainer" class="flex-1 viewport-grid-bg relative flex items-center justify-center p-2 sm:p-5 overflow-hidden">
+        
+        <!-- Wrapper keeping exact aspect ratio of the current render passes -->
+        <div id="canvasStage" class="relative max-w-full max-h-full shadow-2xl shadow-black/80 rounded-lg overflow-hidden border border-studio-border/80 group">
+          <canvas id="relightCanvas" width="960" height="540" class="block w-full h-auto max-h-[calc(100vh-210px)] object-contain cursor-crosshair"></canvas>
+
+          <!-- Animated Click-to-Focus Reticle Overlay -->
+          <div id="focusReticle" class="pointer-events-none hidden absolute w-14 h-14 border-2 border-sky-400 rounded-full shadow-[0_0_15px_rgba(56,189,248,0.8)] flex items-center justify-center">
+            <div class="w-1.5 h-1.5 bg-sky-300 rounded-full"></div>
+            <span id="focusLabelBadge" class="absolute -bottom-7 whitespace-nowrap px-2 py-0.5 rounded bg-slate-950/90 border border-sky-500/50 text-[10px] font-mono text-sky-300">
+              Fokus: 3.2m
+            </span>
+          </div>
+
+          <!-- Top-Left HUD Badge inside Viewport (Current Scene / Autopilot status) -->
+          <div class="pointer-events-none absolute top-3 left-3 flex flex-col gap-1.5">
+            <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-slate-950/80 backdrop-blur-md border border-white/10 text-[11px] font-mono">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span id="hudSceneTitle" class="text-slate-200 font-medium">Szene: Villa Penthouse (5 Light-Selects + Z-Depth + AO)</span>
+            </div>
+            <div id="hudDemoBanner" class="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-amber-500/90 text-slate-950 text-[11px] font-semibold shadow-lg">
+              <span>⚡ Showroom Auto-Demo:</span>
+              <span id="hudDemoPhaseName" class="font-mono underline">Sundowner Glow</span>
+            </div>
+          </div>
+
+          <!-- Bottom-Right HUD Telemetry (Exposure / Active Lights / Tonemapper) -->
+          <div class="pointer-events-none absolute bottom-3 right-3 hidden sm:flex items-center gap-3 px-2.5 py-1 rounded-md bg-slate-950/80 backdrop-blur-md border border-white/10 text-[11px] font-mono text-slate-400">
+            <span>Pipeline: <strong class="text-amber-400" id="hudTonemap">ACES Filmic</strong></span>
+            <span>•</span>
+            <span>Fokus: <strong class="text-sky-400" id="hudFocusDist">2.8m (Esstisch)</strong></span>
+            <span>•</span>
+            <span>Auflösung: <strong class="text-slate-200" id="hudRes">960×540</strong></span>
+          </div>
+        </div>
+
+        <!-- Global Drag & Drop Overlay -->
+        <div id="dropZoneOverlay" class="pointer-events-none opacity-0 transition-opacity duration-200 absolute inset-3 rounded-xl bg-slate-950/90 border-2 border-dashed border-amber-400 flex flex-col items-center justify-center p-6 text-center z-30">
+          <div class="w-14 h-14 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mb-3">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+          </div>
+          <p class="text-base font-semibold text-white">Eigene Render-Passes hier ablegen (Mehrere Dateien möglich)</p>
+          <p class="text-xs text-slate-400 mt-1 max-w-md">
+            Dateinamen mit <code class="text-sky-400">depth</code> oder <code class="text-sky-400">zdepth</code> werden automatisch als Tiefenkanal erkannt, <code class="text-sky-400">ao</code> als Ambient Occlusion, alle anderen als Lichtquellen-Layer (ADD).
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Bottom Quick Info Bar -->
+      <div class="bg-studio-panel border-t border-studio-border px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-amber-400"></span>
+          <span>Physikalisch korrektes <strong class="text-slate-200">Linear sRGB Blending (ADD)</strong> mit Blackbody-Kelvin-Farbtemperatur.</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <label class="cursor-pointer text-amber-400 hover:text-amber-300 font-medium flex items-center gap-1">
+            <input type="file" id="multiPassUploadInput" multiple accept="image/*" class="hidden" onchange="handleBatchPassUpload(event)" />
+            <span>📂 Eigene Render-Passes laden (Batch)...</span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: INDIGO / CORONA LIGHTMIX & POST-FX INSPECTOR -->
+    <aside class="w-full lg:w-[430px] xl:w-[460px] bg-studio-panel border-t lg:border-t-0 lg:border-l border-studio-border flex flex-col lg:h-[calc(100vh-57px)]">
+      
+      <!-- Inspector Tabs -->
+      <div class="grid grid-cols-3 border-b border-studio-border bg-studio-bg/60 p-1 gap-1">
+        <button onclick="switchInspectorTab('lights')" id="tab-btn-lights" class="inspector-tab-btn py-2 px-2 rounded-md text-xs font-semibold bg-studio-card text-amber-400 border border-studio-border shadow flex items-center justify-center gap-1.5 transition">
+          <span>💡</span><span>Lichtquellen (5)</span>
+        </button>
+        <button onclick="switchInspectorTab('postfx')" id="tab-btn-postfx" class="inspector-tab-btn py-2 px-2 rounded-md text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center justify-center gap-1.5 transition">
+          <span>✨</span><span>Post-FX & DoF</span>
+        </button>
+        <button onclick="switchInspectorTab('embed')" id="tab-btn-embed" class="inspector-tab-btn py-2 px-2 rounded-md text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center justify-center gap-1.5 transition">
+          <span>🚀</span><span>Einbinden / SEO</span>
+        </button>
+      </div>
+
+      <!-- TAB 1: LIGHTMIX LAYERS (Indigo / Corona Style) -->
+      <div id="tab-content-lights" class="flex-1 overflow-y-auto p-3.5 space-y-3">
+        
+        <!-- Top Master Header inside LightMix -->
+        <div class="flex items-center justify-between px-1">
+          <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            <span>Light-Select Layer (ADD)</span>
+            <span id="soloActiveBadge" class="hidden px-1.5 py-0.5 text-[10px] rounded bg-amber-500 text-slate-950 font-mono font-bold">SOLO AKTIV</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="clearAllSolos()" id="clearSoloBtn" class="hidden text-[11px] text-amber-400 hover:underline">Solo aufheben</button>
+            <button onclick="addNewEmptyLightSlot()" class="text-[11px] px-2 py-1 rounded bg-studio-card hover:bg-studio-cardHover border border-studio-border text-sky-400 font-medium transition">
+              + Licht-Layer
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic List of Light Source Cards -->
+        <div id="lightLayersList" class="space-y-2.5"></div>
+
+        <!-- Tip Box for Custom Passes -->
+        <div class="p-3 rounded-lg bg-studio-bg/90 border border-studio-border text-xs text-slate-400 space-y-1.5">
+          <div class="font-semibold text-slate-200 flex items-center justify-between">
+            <span>💡 Eigene 3D-Renderings testen?</span>
+            <button onclick="regenerateDemoScene()" class="text-[11px] text-amber-400 hover:underline">Demo-Szene neu laden</button>
+          </div>
+          <p class="leading-relaxed text-[11px]">
+            Rendern Sie Ihre Szene in <strong class="text-slate-300">Blender, V-Ray, Corona, Cinema 4D oder Indigo</strong> als separate Licht-Layer (schwarzer Hintergrund je Lichtquelle) und ziehen Sie die PNG/JPG-Dateien einfach per Drag &amp; Drop direkt in das Vorschaufenster!
+          </p>
+        </div>
+      </div>
+
+      <!-- TAB 2: POST-FX, TONEMAPPING, BLOOM, Z-DEPTH DOF & AO -->
+      <div id="tab-content-postfx" class="hidden flex-1 overflow-y-auto p-3.5 space-y-4">
+        
+        <!-- 1. Master Camera & Tonemapping -->
+        <div class="p-3.5 rounded-xl bg-studio-card border border-studio-border space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              <span>📷 Kamera &amp; Tonemapping</span>
+            </span>
+            <button onclick="resetPostFX()" class="text-[11px] text-slate-400 hover:text-white">Reset FX</button>
+          </div>
+
+          <!-- Tonemapping Operator -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs">
+              <label class="text-slate-300">Tonemapping-Kurve</label>
+              <span class="font-mono text-[11px] text-amber-400">Highlight Roll-Off</span>
+            </div>
+            <select id="tonemapSelect" onchange="onUserPostFXChange()" class="w-full bg-studio-bg border border-studio-border rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+              <option value="aces" selected>ACES Filmic (Physikalischer Studio-Standard)</option>
+              <option value="agx">AgX Punchy (Hoher Kontrast &amp; weiche Lichter)</option>
+              <option value="reinhard">Reinhard Smooth (Klassische Kompression)</option>
+              <option value="linear">Linear sRGB (Ungefiltert / Clipped)</option>
+            </select>
+          </div>
+
+          <!-- Master Exposure (EV) -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-300">Belichtung (Master Exposure)</span>
+              <span id="exposureValLabel" class="font-mono text-amber-400">0.00 EV</span>
+            </div>
+            <input type="range" id="exposureSlider" min="-2.5" max="2.5" step="0.05" value="0.0" oninput="onUserPostFXChange()" ondblclick="this.value=0; onUserPostFXChange();" class="studio-slider" />
+          </div>
+
+          <!-- Contrast -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-300">Kontrast / Film-Gamma</span>
+              <span id="contrastValLabel" class="font-mono text-slate-300">100%</span>
+            </div>
+            <input type="range" id="contrastSlider" min="0.7" max="1.4" step="0.02" value="1.0" oninput="onUserPostFXChange()" ondblclick="this.value=1.0; onUserPostFXChange();" class="studio-slider" />
+          </div>
+        </div>
+
+        <!-- 2. Highlight Bloom / Glare -->
+        <div class="p-3.5 rounded-xl bg-studio-card border border-studio-border space-y-3">
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="bloomToggle" checked onchange="onUserPostFXChange()" class="accent-amber-500 w-4 h-4 rounded" />
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-200">✨ Highlight Bloom &amp; Glare</span>
+            </label>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">HDR Glow</span>
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-300">Bloom-Intensität</span>
+              <span id="bloomStrengthLabel" class="font-mono text-amber-400">45%</span>
+            </div>
+            <input type="range" id="bloomStrengthSlider" min="0" max="1.5" step="0.05" value="0.45" oninput="onUserPostFXChange()" class="studio-slider" />
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-300">Schwellenwert (Threshold)</span>
+              <span id="bloomThresholdLabel" class="font-mono text-slate-300">0.75</span>
+            </div>
+            <input type="range" id="bloomThresholdSlider" min="0.25" max="1.6" step="0.05" value="0.75" oninput="onUserPostFXChange()" class="studio-slider" />
+          </div>
+        </div>
+
+        <!-- 3. Z-Depth Depth of Field (DoF / Bokeh) -->
+        <div class="p-3.5 rounded-xl bg-studio-card border border-studio-border space-y-3">
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="dofToggle" checked onchange="onUserPostFXChange()" class="accent-sky-400 w-4 h-4 rounded" />
+              <span class="text-xs font-bold uppercase tracking-wider text-sky-400">🎯 Z-Depth Tiefenunschärfe (DoF)</span>
+            </label>
+            <label class="cursor-pointer text-[11px] px-2 py-0.5 rounded bg-studio-bg hover:bg-slate-800 border border-studio-border text-sky-300 transition">
+              <input type="file" accept="image/*" class="hidden" onchange="uploadAuxChannel(event, 'depth')" />
+              <span>Z-Depth laden</span>
+            </label>
+          </div>
+
+          <p class="text-[11px] text-slate-400 leading-snug">
+            Klicken Sie direkt ins Bild (z. B. auf den <strong class="text-slate-200">Esstisch im Vordergrund</strong> oder den <strong class="text-slate-200">Pool im Hintergrund</strong>), um die Schärfeebene automatisch zu fokussieren!
+          </p>
+
+          <!-- Focal Distance -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-300">Fokus-Distanz (Nah ↔ Fern)</span>
+              <span id="dofFocalLabel" class="font-mono text-sky-400">0.22 (Esstisch)</span>
+            </div>
+            <input type="range" id="dofFocalSlider" min="0.05" max="0.98" step="0.01" value="0.22" oninput="onUserPostFXChange()" class="studio-slider cyan-slider" />
+          </div>
+
+          <!-- Aperture / Blur Radius -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-300">Blende / Unschärfe-Stärke (Bokeh)</span>
+              <span id="dofBlurLabel" class="font-mono text-sky-400">35% (f/2.8)</span>
+            </div>
+            <input type="range" id="dofBlurSlider" min="0" max="1.0" step="0.02" value="0.35" oninput="onUserPostFXChange()" class="studio-slider cyan-slider" />
+          </div>
+        </div>
+
+        <!-- 4. Ambient Occlusion (AO) -->
+        <div class="p-3.5 rounded-xl bg-studio-card border border-studio-border space-y-3">
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="aoToggle" checked onchange="onUserPostFXChange()" class="accent-amber-500 w-4 h-4 rounded" />
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-200">🌑 Ambient Occlusion (AO-Kanal)</span>
+            </label>
+            <label class="cursor-pointer text-[11px] px-2 py-0.5 rounded bg-studio-bg hover:bg-slate-800 border border-studio-border text-slate-300 transition">
+              <input type="file" accept="image/*" class="hidden" onchange="uploadAuxChannel(event, 'ao')" />
+              <span>AO-Map laden</span>
+            </label>
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-300">Kontakt-Schatten Tiefe</span>
+              <span id="aoStrengthLabel" class="font-mono text-amber-400">65%</span>
+            </div>
+            <input type="range" id="aoStrengthSlider" min="0" max="1.0" step="0.05" value="0.65" oninput="onUserPostFXChange()" class="studio-slider" />
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TAB 3: EMBEDDING, GITHUB PAGES & DOFOLLOW SEO TOOLKIT -->
+      <div id="tab-content-embed" class="hidden flex-1 overflow-y-auto p-3.5 space-y-4">
+        
+        <!-- Card 1: Easy Website Iframe / Script Embed -->
+        <div class="p-3.5 rounded-xl bg-studio-card border border-studio-border space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-400">1. In Webseite einbinden (Embed-Snippet)</span>
+            <button onclick="copySnippet('embedCodeArea', 'copyEmbedFeedback')" class="px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-[11px] transition">
+              <span id="copyEmbedFeedback">📋 Code kopieren</span>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            Komplett ohne Abhängigkeiten (~1 Datei). Binden Sie das Tool direkt auf Ihrer Agentur-Webseite, im Portfolio oder als interaktives Kunden-Relight-Preview ein:
+          </p>
+          <textarea id="embedCodeArea" readonly rows="6" class="w-full font-mono text-[11px] bg-studio-bg text-sky-300 p-2.5 rounded-lg border border-studio-border focus:outline-none">
+<!-- PolyLightMix Interactive 3D Relight Embed -->
+<iframe 
+  src="https://polygonmanufaktur.github.io/polylightmix/" 
+  width="100%" 
+  height="720" 
+  style="border:1px solid #282e3b; border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,0.5);" 
+  loading="lazy" 
+  allowfullscreen>
+</iframe>
+<p style="font-size:12px; color:#64748b; margin-top:6px;">
+  Interaktives 3D-LightMix Tool powered by <a href="https://polygonmanufaktur.de" rel="dofollow" target="_blank">Polygon Manufaktur</a>
+</p></textarea>
+        </div>
+
+        <!-- Card 2: Export Current LightMix Preset as JSON Configuration -->
+        <div class="p-3.5 rounded-xl bg-studio-card border border-studio-border space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-sky-400">2. Aktuelles Licht-Setup als JSON (API / Preset)</span>
+            <button onclick="exportCurrentConfigJSON()" class="px-2.5 py-1 rounded bg-studio-bg hover:bg-slate-800 border border-studio-border text-sky-300 font-semibold text-[11px] transition">
+              <span id="copyJsonFeedback">⚙️ Setup-JSON kopieren</span>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            Sie können Ihre aktuellen Reglerstellungen (Intensität, Kelvin, DoF, Bloom) als JSON-Konfiguration exportieren, um eigene Kunden-Szenen exakt vorzukonfigurieren:
+          </p>
+          <textarea id="jsonConfigArea" readonly rows="5" class="w-full font-mono text-[11px] bg-studio-bg text-amber-300 p-2.5 rounded-lg border border-studio-border focus:outline-none"></textarea>
+        </div>
+
+        <!-- Card 3: GitHub Pages / Vercel / Directory SEO Checklist -->
+        <div class="p-3.5 rounded-xl bg-studio-bg border border-studio-border space-y-2 text-[11px] text-slate-300">
+          <div class="font-bold text-white uppercase tracking-wider text-xs flex items-center gap-1.5">
+            <span>🚀 Der Mini-Tool-SEO-Hack (Deployment-Guide)</span>
+          </div>
+          <ol class="list-decimal list-inside space-y-1.5 text-slate-400 leading-relaxed">
+            <li>Speichern Sie diese Datei als <code class="text-amber-400">index.html</code> in einem öffentlichen GitHub-Repository (<code class="text-slate-200">polygonmanufaktur/polylightmix</code>).</li>
+            <li>Aktivieren Sie <strong class="text-slate-200">GitHub Pages</strong> (<code class="text-sky-400">polygonmanufaktur.github.io/polylightmix</code>) sowie Spiegelungen auf <strong class="text-slate-200">Vercel</strong> (<code class="text-sky-400">.vercel.app</code>) und <strong class="text-slate-200">Netlify</strong>.</li>
+            <li>Reichen Sie das Tool kostenlos als <strong class="text-slate-200">Browser-Alternative zu Corona LightMix / V-Ray Frame Buffer</strong> bei <em>AlternativeTo, Uneed.best, SaaSHub</em> und <em>Product Hunt</em> ein.</li>
+            <li>Das integrierte <code class="text-amber-400">Application/LD+JSON</code> Schema und der Dofollow-Credit im Header sorgen für maximale Domain-Authority-Weitergabe.</li>
+          </ol>
+        </div>
+
+      </div>
+
+      <!-- Inspector Footer -->
+      <div class="px-4 py-2.5 border-t border-studio-border bg-studio-bg text-[11px] text-slate-400 flex items-center justify-between">
+        <span>Zero-Dependency WebGL Relight Engine</span>
+        <a href="https://polygonmanufaktur.de" target="_blank" rel="dofollow" class="text-slate-300 hover:text-amber-400 font-medium transition">polygonmanufaktur.de ↗</a>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- APPLICATION SCRIPT: PROCEDURAL 3D RENDER PASS GENERATOR + WEBGL LINEAR RELIGHT COMPOSITOR + AUTO-DEMO -->
+  <script>
+    /***************************************************************************
+     * 1. KELVIN COLOR TEMPERATURE TABLE (Physically-based Blackbody multipliers)
+     * Converts Kelvin temperature into linear RGB multipliers like Indigo/Corona
+     ***************************************************************************/
+    const KELVIN_OPTIONS = [
+      { value: 'native', label: 'Nativ (Render-Original)', kelvin: 6500, rgb: [1.00, 1.00, 1.00], hex: '#ffffff' },
+      { value: '1800',   label: '1800K – Kerzenlicht / Kamin', kelvin: 1800, rgb: [1.35, 0.58, 0.14], hex: '#ff8a2b' },
+      { value: '2700',   label: '2700K – Warmweiß (Wohnraum)', kelvin: 2700, rgb: [1.24, 0.81, 0.44], hex: '#ffb46b' },
+      { value: '3200',   label: '3200K – Halogen / Kunstlicht', kelvin: 3200, rgb: [1.16, 0.88, 0.59], hex: '#ffce96' },
+      { value: '4000',   label: '4000K – Neutralweiß (Büro)', kelvin: 4000, rgb: [1.08, 0.95, 0.78], hex: '#ffe8c8' },
+      { value: '5500',   label: '5500K – Tageslicht / Sonne', kelvin: 5500, rgb: [1.02, 0.99, 0.94], hex: '#fff9f0' },
+      { value: '6500',   label: '6500K – Bedeckter Himmel', kelvin: 6500, rgb: [0.96, 0.99, 1.05], hex: '#f2f7ff' },
+      { value: '8000',   label: '8000K – Blaue Stunde (Kalt)', kelvin: 8000, rgb: [0.83, 0.93, 1.18], hex: '#cfe4ff' },
+      { value: '9500',   label: '9500K – Arktisch Blau', kelvin: 9500, rgb: [0.74, 0.87, 1.28], hex: '#b5d6ff' }
+    ];
+
+    /***************************************************************************
+     * 2. APPLICATION STATE (Light Layers, Post-FX, Auto-Demo, Viewport)
+     ***************************************************************************/
+    const RENDER_WIDTH = 960;
+    const RENDER_HEIGHT = 540;
+
+    let lightLayers = [
+      {
+        id: 'sky',
+        name: 'Himmelslicht / Skylight (Env)',
+        active: true,
+        solo: false,
+        intensity: 1.0,
+        kelvinKey: '6500',
+        customColorHex: '#f2f7ff',
+        useCustomColor: false,
+        canvas: null,
+        thumbUrl: ''
+      },
+      {
+        id: 'sun',
+        name: 'Abendsonne / Direct Sun',
+        active: true,
+        solo: false,
+        intensity: 1.15,
+        kelvinKey: '3200',
+        customColorHex: '#ffce96',
+        useCustomColor: false,
+        canvas: null,
+        thumbUrl: ''
+      },
+      {
+        id: 'pendants',
+        name: 'Pendelleuchten Esstisch',
+        active: true,
+        solo: false,
+        intensity: 1.25,
+        kelvinKey: '2700',
+        customColorHex: '#ffb46b',
+        useCustomColor: false,
+        canvas: null,
+        thumbUrl: ''
+      },
+      {
+        id: 'cove_fire',
+        name: 'Vouten-LED & Kaminfeuer',
+        active: true,
+        solo: false,
+        intensity: 1.10,
+        kelvinKey: '1800',
+        customColorHex: '#ff8a2b',
+        useCustomColor: false,
+        canvas: null,
+        thumbUrl: ''
+      },
+      {
+        id: 'pool_garden',
+        name: 'Außenpool & Garten-Spots',
+        active: true,
+        solo: false,
+        intensity: 1.05,
+        kelvinKey: 'native',
+        customColorHex: '#ffffff',
+        useCustomColor: false,
+        canvas: null,
+        thumbUrl: ''
+      }
+    ];
+
+    // Auxiliary Passes (Z-Depth & Ambient Occlusion)
+    const auxPasses = {
+      depthCanvas: null,
+      depthPixelData: null, // Cached Uint8ClampedArray for instant Click-to-Focus depth lookup
+      aoCanvas: null
+    };
+
+    // Post-FX & Camera State
+    const postFX = {
+      tonemap: 'aces',      // 'aces' | 'agx' | 'reinhard' | 'linear'
+      exposure: 0.0,        // -2.5 to +2.5 EV
+      contrast: 1.0,        // 0.7 to 1.4
+      bloomEnabled: true,
+      bloomStrength: 0.45,
+      bloomThreshold: 0.75,
+      dofEnabled: true,
+      dofFocalDist: 0.22,   // 0.0 (Near) to 1.0 (Far)
+      dofBlur: 0.35,        // 0.0 to 1.0
+      aoEnabled: true,
+      aoStrength: 0.65      // 0.0 to 1.0
+    };
+
+    let currentPassView = 'beauty'; // 'beauty' | 'depth' | 'ao' | 'bloom'
+    let holdingOriginalCompare = false;
+
+    // Auto-Demo State ("Showroom Autopilot")
+    let autoDemoActive = true;
+    let autoDemoStartTime = performance.now();
+    let animFrameId = null;
+
+    /***************************************************************************
+     * 3. PROCEDURAL 3D ARCHITECTURAL RENDER PASS GENERATOR
+     * Generates 5 realistic separated Light-Select passes + Z-Depth + AO
+     * so the tool works 100% standalone with zero external image dependencies.
+     ***************************************************************************/
+    function createOffscreenCanvas(w = RENDER_WIDTH, h = RENDER_HEIGHT) {
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      return c;
+    }
+
+    function generateProceduralArchvizPasses() {
+      const W = RENDER_WIDTH;
+      const H = RENDER_HEIGHT;
+
+      // Helper for drawing architectural room perspective & furniture shapes cleanly
+      // Room Geometry Reference Coordinates:
+      // Back wall & panoramic window: x=[160..840], y=[85..385]
+      // Ceiling plane: y=[0..85]
+      // Floor plane (Oak / Travertine): y=[385..540]
+      // Left fireplace / architectural concrete feature wall: x=[0..195]
+      // Foreground dining table & pendant lights (Right-Center Foreground): x=[470..830], y=[355..520]
+      // Midground lounge sofa: x=[210..445], y=[335..430]
+      // Exterior terrace pool: x=[340..820], y=[365..425] (seen through window)
+
+      // -----------------------------------------------------------------------
+      // PASS 1: HIMMELSLICHT / SKYLIGHT (Environment Dome & Cool Diffuse Fill)
+      // -----------------------------------------------------------------------
+      const skyCanvas = createOffscreenCanvas(W, H);
+      const sCtx = skyCanvas.getContext('2d');
+      sCtx.fillStyle = '#000000';
+      sCtx.fillRect(0, 0, W, H);
+
+      // Exterior twilight sky dome seen through panoramic glazing
+      const skyGrad = sCtx.createLinearGradient(0, 80, 0, 385);
+      skyGrad.addColorStop(0, '#4f77aa');
+      skyGrad.addColorStop(0.55, '#8cb3d9');
+      skyGrad.addColorStop(1, '#3b5878');
+      sCtx.fillStyle = skyGrad;
+      sCtx.fillRect(190, 85, 650, 300);
+
+      // Distant horizon silhouette & hills
+      sCtx.fillStyle = '#192638';
+      sCtx.beginPath();
+      sCtx.moveTo(190, 325);
+      sCtx.quadraticCurveTo(360, 295, 520, 320);
+      sCtx.quadraticCurveTo(690, 300, 840, 318);
+      sCtx.lineTo(840, 385);
+      sCtx.lineTo(190, 385);
+      sCtx.closePath();
+      sCtx.fill();
+
+      // Exterior pool reflection of sky
+      const poolSkyGrad = sCtx.createLinearGradient(350, 360, 820, 410);
+      poolSkyGrad.addColorStop(0, 'rgba(95, 145, 195, 0.45)');
+      poolSkyGrad.addColorStop(1, 'rgba(55, 95, 140, 0.25)');
+      sCtx.fillStyle = poolSkyGrad;
+      sCtx.fillRect(350, 355, 480, 30);
+
+      // Soft ambient skylight spill into the ceiling, walls, and floor
+      const roomAmb = sCtx.createRadialGradient(520, 230, 50, 480, 280, 560);
+      roomAmb.addColorStop(0, 'rgba(130, 165, 205, 0.42)');
+      roomAmb.addColorStop(0.55, 'rgba(75, 100, 135, 0.25)');
+      roomAmb.addColorStop(1, 'rgba(20, 30, 45, 0.06)');
+      sCtx.fillStyle = roomAmb;
+      sCtx.fillRect(0, 0, W, H);
+
+      // Floor ambient sky reflection
+      const floorSky = sCtx.createLinearGradient(0, 385, 0, H);
+      floorSky.addColorStop(0, 'rgba(110, 145, 185, 0.36)');
+      floorSky.addColorStop(1, 'rgba(35, 50, 72, 0.14)');
+      sCtx.fillStyle = floorSky;
+      sCtx.beginPath();
+      sCtx.moveTo(190, 385);
+      sCtx.lineTo(840, 385);
+      sCtx.lineTo(W, H);
+      sCtx.lineTo(0, H);
+      sCtx.closePath();
+      sCtx.fill();
+
+      // Architectural silhouette details (Window mullions, sofa, table top diffuse sky fill)
+      drawArchitecturalBaseGeometry(sCtx, {
+        wallColor: 'rgba(52, 66, 86, 0.65)',
+        sofaColor: 'rgba(68, 84, 106, 0.55)',
+        tableColor: 'rgba(60, 75, 95, 0.60)',
+        mullionColor: '#0e131a'
+      });
+
+      // -----------------------------------------------------------------------
+      // PASS 2: ABENDSONNE / DIRECT SUN (Diagonal Sunbeams & Floor Bounce)
+      // -----------------------------------------------------------------------
+      const sunCanvas = createOffscreenCanvas(W, H);
+      const sunCtx = sunCanvas.getContext('2d');
+      sunCtx.fillStyle = '#000000';
+      sunCtx.fillRect(0, 0, W, H);
+
+      // Bright solar disc glow near horizon outside left-center window pane
+      const sunGlow = sunCtx.createRadialGradient(720, 235, 10, 720, 235, 340);
+      sunGlow.addColorStop(0, 'rgba(255, 235, 190, 0.95)');
+      sunGlow.addColorStop(0.25, 'rgba(255, 185, 105, 0.55)');
+      sunGlow.addColorStop(0.65, 'rgba(210, 115, 50, 0.16)');
+      sunGlow.addColorStop(1, 'rgba(0,0,0,0)');
+      sunCtx.fillStyle = sunGlow;
+      sunCtx.fillRect(190, 85, 650, 300);
+
+      // Dramatic diagonal sun shafts hitting the room floor, sofa, and dining table
+      sunCtx.save();
+      const shaftGrad = sunCtx.createLinearGradient(760, 170, 180, 520);
+      shaftGrad.addColorStop(0, 'rgba(255, 220, 165, 0.42)');
+      shaftGrad.addColorStop(0.5, 'rgba(255, 195, 125, 0.30)');
+      shaftGrad.addColorStop(1, 'rgba(255, 165, 90, 0.05)');
+      sunCtx.fillStyle = shaftGrad;
+
+      // Pane 1 sunbeam polygon
+      sunCtx.beginPath();
+      sunCtx.moveTo(410, 88);
+      sunCtx.lineTo(615, 88);
+      sunCtx.lineTo(350, 540);
+      sunCtx.lineTo(95, 540);
+      sunCtx.closePath();
+      sunCtx.fill();
+
+      // Pane 2 sunbeam polygon
+      sunCtx.beginPath();
+      sunCtx.moveTo(625, 88);
+      sunCtx.lineTo(835, 88);
+      sunCtx.lineTo(640, 540);
+      sunCtx.lineTo(390, 540);
+      sunCtx.closePath();
+      sunCtx.fill();
+
+      // Crisp sunlit patches on the floor with window frame shadow cuts
+      const patchGrad = sunCtx.createLinearGradient(650, 385, 160, 535);
+      patchGrad.addColorStop(0, 'rgba(255, 215, 150, 0.85)');
+      patchGrad.addColorStop(0.6, 'rgba(255, 185, 110, 0.55)');
+      patchGrad.addColorStop(1, 'rgba(220, 130, 65, 0.1)');
+      sunCtx.fillStyle = patchGrad;
+
+      // Sun patch 1 (hits sofa & midground floor)
+      sunCtx.beginPath();
+      sunCtx.moveTo(480, 385);
+      sunCtx.lineTo(605, 385);
+      sunCtx.lineTo(340, 540);
+      sunCtx.lineTo(150, 540);
+      sunCtx.closePath();
+      sunCtx.fill();
+
+      // Sun patch 2 (hits dining table & foreground floor)
+      sunCtx.beginPath();
+      sunCtx.moveTo(625, 385);
+      sunCtx.lineTo(815, 385);
+      sunCtx.lineTo(620, 540);
+      sunCtx.lineTo(390, 540);
+      sunCtx.closePath();
+      sunCtx.fill();
+
+      // Sun rim highlight on dining tabletop & sofa top edge
+      sunCtx.fillStyle = 'rgba(255, 225, 170, 0.75)';
+      sunCtx.fillRect(465, 385, 355, 7); // Table top rim
+      sunCtx.fillStyle = 'rgba(255, 210, 150, 0.50)';
+      sunCtx.fillRect(225, 352, 225, 12); // Sofa sun highlight
+      sunCtx.restore();
+
+      // -----------------------------------------------------------------------
+      // PASS 3: PENDELLEUCHTEN ESSTISCH (3 Warm Architectural Pendants + Table)
+      // -----------------------------------------------------------------------
+      const pendCanvas = createOffscreenCanvas(W, H);
+      const pCtx = pendCanvas.getContext('2d');
+      pCtx.fillStyle = '#000000';
+      pCtx.fillRect(0, 0, W, H);
+
+      const pendantX = [565, 645, 725];
+      const pendantY = [235, 250, 230];
+
+      // Downward volumetric light cones & tabletop illumination
+      pendantX.forEach((px, idx) => {
+        const py = pendantY[idx];
+
+        // Light cone onto table
+        const coneGrad = pCtx.createRadialGradient(px, py + 115, 12, px, py + 145, 220);
+        coneGrad.addColorStop(0, 'rgba(255, 215, 155, 0.62)');
+        coneGrad.addColorStop(0.38, 'rgba(245, 175, 100, 0.28)');
+        coneGrad.addColorStop(0.75, 'rgba(180, 110, 55, 0.08)');
+        coneGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        pCtx.fillStyle = coneGrad;
+        pCtx.beginPath();
+        pCtx.moveTo(px - 18, py);
+        pCtx.lineTo(px + 18, py);
+        pCtx.lineTo(px + 210, 530);
+        pCtx.lineTo(px - 210, 530);
+        pCtx.closePath();
+        pCtx.fill();
+
+        // Suspension cord
+        pCtx.strokeStyle = 'rgba(120, 100, 80, 0.45)';
+        pCtx.lineWidth = 1.5;
+        pCtx.beginPath();
+        pCtx.moveTo(px, 45);
+        pCtx.lineTo(px, py - 12);
+        pCtx.stroke();
+
+        // Glowing bulb / glass diffuser core (high luminance for Bloom!)
+        const bulbGlow = pCtx.createRadialGradient(px, py, 2, px, py, 32);
+        bulbGlow.addColorStop(0, 'rgba(255, 252, 240, 1.0)');
+        bulbGlow.addColorStop(0.3, 'rgba(255, 215, 145, 0.85)');
+        bulbGlow.addColorStop(1, 'rgba(255, 160, 70, 0.0)');
+        pCtx.fillStyle = bulbGlow;
+        pCtx.beginPath();
+        pCtx.arc(px, py, 32, 0, Math.PI * 2);
+        pCtx.fill();
+
+        // Lamp shade upper brass cap
+        pCtx.fillStyle = '#241c14';
+        pCtx.beginPath();
+        pCtx.arc(px, py - 6, 13, Math.PI, 0);
+        pCtx.fill();
+      });
+
+      // Illuminated Dining Table surface & centerpiece objects
+      const tableSpot = pCtx.createRadialGradient(645, 392, 15, 645, 405, 230);
+      tableSpot.addColorStop(0, 'rgba(255, 225, 175, 0.95)');
+      tableSpot.addColorStop(0.45, 'rgba(225, 165, 100, 0.58)');
+      tableSpot.addColorStop(0.85, 'rgba(120, 75, 38, 0.15)');
+      tableSpot.addColorStop(1, 'rgba(0,0,0,0)');
+      pCtx.fillStyle = tableSpot;
+      pCtx.beginPath();
+      pCtx.moveTo(465, 386);
+      pCtx.lineTo(825, 386);
+      pCtx.lineTo(855, 412);
+      pCtx.lineTo(445, 412);
+      pCtx.closePath();
+      pCtx.fill();
+
+      // Specular highlights on wine glasses & ceramic vase on dining table
+      pCtx.fillStyle = 'rgba(255, 245, 220, 0.85)';
+      pCtx.fillRect(628, 360, 14, 28); // Vase lit side
+      pCtx.fillRect(580, 368, 6, 20);  // Glass 1 highlight
+      pCtx.fillRect(692, 368, 6, 20);  // Glass 2 highlight
+
+      // Warm bounce on dining chairs and floor under table
+      const underBounce = pCtx.createRadialGradient(645, 465, 20, 645, 470, 220);
+      underBounce.addColorStop(0, 'rgba(215, 145, 80, 0.35)');
+      underBounce.addColorStop(1, 'rgba(0,0,0,0)');
+      pCtx.fillStyle = underBounce;
+      pCtx.fillRect(420, 410, 450, 130);
+
+      // -----------------------------------------------------------------------
+      // PASS 4: VOUTEN-LED & KAMINFEUER (Ceiling Cove LED + Hearth Fireplace)
+      // -----------------------------------------------------------------------
+      const coveCanvas = createOffscreenCanvas(W, H);
+      const cCtx = coveCanvas.getContext('2d');
+      cCtx.fillStyle = '#000000';
+      cCtx.fillRect(0, 0, W, H);
+
+      // 4A. Architectural Ceiling LED Cove Strip (x=150..850, y=52)
+      const coveGlow = cCtx.createLinearGradient(0, 35, 0, 155);
+      coveGlow.addColorStop(0, 'rgba(255, 195, 125, 0.15)');
+      coveGlow.addColorStop(0.22, 'rgba(255, 235, 195, 0.95)');
+      coveGlow.addColorStop(0.45, 'rgba(255, 185, 110, 0.38)');
+      coveGlow.addColorStop(1, 'rgba(0,0,0,0)');
+      cCtx.fillStyle = coveGlow;
+      cCtx.fillRect(140, 35, 720, 115);
+
+      // Crisp LED emitter line in ceiling recess
+      cCtx.fillStyle = '#fff5e4';
+      cCtx.fillRect(160, 54, 680, 3);
+
+      // 4B. Left Architectural Fireplace & Hearth Glow (x=35..155, y=280..410)
+      const fireCenter = { x: 98, y: 355 };
+      const fireRad = cCtx.createRadialGradient(fireCenter.x, fireCenter.y, 8, fireCenter.x + 60, fireCenter.y + 30, 340);
+      fireRad.addColorStop(0, 'rgba(255, 245, 200, 1.0)');
+      fireRad.addColorStop(0.16, 'rgba(255, 165, 65, 0.85)');
+      fireRad.addColorStop(0.45, 'rgba(225, 95, 25, 0.38)');
+      fireRad.addColorStop(0.8, 'rgba(130, 45, 10, 0.10)');
+      fireRad.addColorStop(1, 'rgba(0,0,0,0)');
+      cCtx.fillStyle = fireRad;
+      cCtx.fillRect(0, 120, 520, 420);
+
+      // Flame tongues inside fireplace recess
+      cCtx.fillStyle = '#fffbe6';
+      cCtx.beginPath();
+      cCtx.moveTo(62, 382);
+      cCtx.quadraticCurveTo(75, 335, 86, 382);
+      cCtx.quadraticCurveTo(98, 322, 112, 382);
+      cCtx.quadraticCurveTo(124, 342, 134, 382);
+      cCtx.closePath();
+      cCtx.fill();
+
+      // Warm fireplace spill onto lounge sofa & left concrete wall
+      const sofaFireSpill = cCtx.createLinearGradient(160, 360, 420, 390);
+      sofaFireSpill.addColorStop(0, 'rgba(255, 150, 65, 0.52)');
+      sofaFireSpill.addColorStop(1, 'rgba(0,0,0,0)');
+      cCtx.fillStyle = sofaFireSpill;
+      cCtx.fillRect(205, 335, 240, 95);
+
+      // -----------------------------------------------------------------------
+      // PASS 5: AUSSENPOOL & GARTEN-SPOTS (Underwater Turquoise Pool & Tree Spots)
+      // -----------------------------------------------------------------------
+      const poolCanvas = createOffscreenCanvas(W, H);
+      const plCtx = poolCanvas.getContext('2d');
+      plCtx.fillStyle = '#000000';
+      plCtx.fillRect(0, 0, W, H);
+
+      // Underwater cyan-turquoise pool illumination outside on the terrace
+      const poolGlow = plCtx.createRadialGradient(585, 372, 15, 585, 365, 280);
+      poolGlow.addColorStop(0, 'rgba(80, 245, 255, 0.98)');
+      poolGlow.addColorStop(0.3, 'rgba(35, 195, 235, 0.65)');
+      poolGlow.addColorStop(0.65, 'rgba(15, 105, 160, 0.22)');
+      poolGlow.addColorStop(1, 'rgba(0,0,0,0)');
+      plCtx.fillStyle = poolGlow;
+      plCtx.fillRect(220, 180, 620, 280);
+
+      // Bright water surface rectangle
+      const waterSurf = plCtx.createLinearGradient(350, 358, 825, 382);
+      waterSurf.addColorStop(0, '#22d3ee');
+      waterSurf.addColorStop(0.5, '#67e8f9');
+      waterSurf.addColorStop(1, '#0891b2');
+      plCtx.fillStyle = waterSurf;
+      plCtx.fillRect(355, 358, 465, 24);
+
+      // Exterior Garden Tree Uplights (Warm architectural spots on patio trees)
+      const treeSpots = [
+        { x: 265, y: 275, r: 95 },
+        { x: 775, y: 260, r: 110 }
+      ];
+      treeSpots.forEach(spot => {
+        const tg = plCtx.createRadialGradient(spot.x, spot.y + 40, 5, spot.x, spot.y, spot.r);
+        tg.addColorStop(0, 'rgba(255, 210, 135, 0.85)');
+        tg.addColorStop(0.45, 'rgba(180, 145, 75, 0.35)');
+        tg.addColorStop(1, 'rgba(0,0,0,0)');
+        plCtx.fillStyle = tg;
+        plCtx.beginPath();
+        plCtx.arc(spot.x, spot.y, spot.r, 0, Math.PI * 2);
+        plCtx.fill();
+      });
+
+      // Caustic water reflection on exterior overhang & interior floor near glass
+      const causticFloor = plCtx.createLinearGradient(580, 385, 580, 485);
+      causticFloor.addColorStop(0, 'rgba(56, 215, 240, 0.32)');
+      causticFloor.addColorStop(1, 'rgba(0,0,0,0)');
+      plCtx.fillStyle = causticFloor;
+      plCtx.fillRect(340, 385, 480, 100);
+
+      // Assign generated canvases to our 5 light layers and build thumbnail URLs
+      const canvases = [skyCanvas, sunCanvas, pendCanvas, coveCanvas, poolCanvas];
+      lightLayers.forEach((layer, i) => {
+        layer.canvas = canvases[i];
+        layer.thumbUrl = createThumbnailDataURL(canvases[i]);
+      });
+
+      // -----------------------------------------------------------------------
+      // AUX PASS 1: Z-DEPTH CHANNEL (Grayscale 0=Near/Dark -> 1=Far/Bright)
+      // Used for real-time Bokeh Depth-of-Field + Interactive Click-to-Focus!
+      // -----------------------------------------------------------------------
+      const depthCanvas = createOffscreenCanvas(W, H);
+      const dCtx = depthCanvas.getContext('2d');
+
+      // Base room depth gradient (Floor near -> Back wall -> Exterior far)
+      // Exterior through window (Very Far: 0.85 - 1.0)
+      dCtx.fillStyle = '#f2f2f2'; // ~0.95 depth
+      dCtx.fillRect(0, 0, W, H);
+
+      // Mid-far ceiling & back wall structure (~0.68 depth)
+      const wallDepth = dCtx.createLinearGradient(0, 0, 0, 385);
+      wallDepth.addColorStop(0, '#888888');
+      wallDepth.addColorStop(1, '#b5b5b5');
+      dCtx.fillStyle = wallDepth;
+      dCtx.fillRect(0, 0, W, 90);
+      dCtx.fillRect(0, 85, 195, 310);
+      dCtx.fillRect(835, 85, W - 835, 310);
+
+      // Exterior pool surface (0.82 depth) & garden trees (0.78 depth)
+      dCtx.fillStyle = '#d0d0d0';
+      dCtx.fillRect(350, 350, 480, 35);
+      dCtx.fillStyle = '#c4c4c4';
+      dCtx.beginPath();
+      dCtx.arc(265, 275, 65, 0, Math.PI * 2);
+      dCtx.arc(775, 260, 75, 0, Math.PI * 2);
+      dCtx.fill();
+
+      // Floor perspective ramp (0.65 at window -> 0.12 at bottom foreground edge)
+      const floorDepth = dCtx.createLinearGradient(0, 385, 0, H);
+      floorDepth.addColorStop(0, '#a8a8a8'); // 0.66
+      floorDepth.addColorStop(1, '#1f1f1f'); // 0.12
+      dCtx.fillStyle = floorDepth;
+      dCtx.fillRect(0, 385, W, H - 385);
+
+      // Left Fireplace Wall perspective ramp (0.35 near left edge -> 0.62 at window corner)
+      const leftWallDepth = dCtx.createLinearGradient(0, 250, 195, 250);
+      leftWallDepth.addColorStop(0, '#585858');
+      leftWallDepth.addColorStop(1, '#9e9e9e');
+      dCtx.fillStyle = leftWallDepth;
+      dCtx.fillRect(0, 85, 195, 325);
+
+      // Midground Lounge Sofa (Depth ~ 0.48, RGB ~ #7a7a7a)
+      dCtx.fillStyle = '#7a7a7a';
+      dCtx.fillRect(210, 345, 235, 78);
+
+      // Foreground Dining Table, Chairs & Pendant Lamps (Depth ~ 0.22, RGB ~ #383838)
+      dCtx.fillStyle = '#383838';
+      // Table top & legs
+      dCtx.fillRect(460, 385, 370, 26);
+      dCtx.fillRect(485, 410, 18, 105);
+      dCtx.fillRect(785, 410, 18, 105);
+      // Chairs around table
+      dCtx.fillStyle = '#2e2e2e';
+      dCtx.fillRect(515, 362, 55, 145);
+      dCtx.fillRect(615, 362, 55, 145);
+      dCtx.fillRect(715, 362, 55, 145);
+      // Pendant Lamps (Depth ~ 0.22)
+      pendantX.forEach((px, idx) => {
+        const py = pendantY[idx];
+        dCtx.beginPath();
+        dCtx.arc(px, py, 18, 0, Math.PI * 2);
+        dCtx.fill();
+        dCtx.fillRect(px - 1, 50, 3, py - 50);
+      });
+
+      auxPasses.depthCanvas = depthCanvas;
+      auxPasses.depthPixelData = dCtx.getImageData(0, 0, W, H).data;
+
+      // -----------------------------------------------------------------------
+      // AUX PASS 2: AMBIENT OCCLUSION (AO Contact Shadows, White=1.0, Dark=Crevices)
+      // -----------------------------------------------------------------------
+      const aoCanvas = createOffscreenCanvas(W, H);
+      const aCtx = aoCanvas.getContext('2d');
+      aCtx.fillStyle = '#ffffff';
+      aCtx.fillRect(0, 0, W, H);
+
+      // Soft contact shadows in room corners, ceiling recess, under sofa & dining table
+      const drawSoftAOBox = (x, y, w, h, darkness = 0.55) => {
+        const g = aCtx.createRadialGradient(x + w / 2, y + h / 2, 5, x + w / 2, y + h / 2, Math.max(w, h) * 0.7);
+        g.addColorStop(0, `rgba(0,0,0,${darkness})`);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        aCtx.fillStyle = g;
+        aCtx.fillRect(x, y, w, h);
+      };
+
+      // Ceiling cove crevice AO
+      aCtx.fillStyle = 'rgba(0,0,0,0.45)';
+      aCtx.fillRect(150, 48, 700, 10);
+
+      // Wall-Floor corner contact shadow line
+      const cornerGrad = aCtx.createLinearGradient(0, 375, 0, 402);
+      cornerGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      cornerGrad.addColorStop(0.5, 'rgba(0,0,0,0.55)');
+      cornerGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      aCtx.fillStyle = cornerGrad;
+      aCtx.fillRect(0, 375, W, 28);
+
+      // Under Lounge Sofa AO shadow
+      drawSoftAOBox(195, 395, 265, 50, 0.72);
+      // Under Dining Table & Chairs AO contact shadow
+      drawSoftAOBox(450, 445, 395, 85, 0.78);
+      // Fireplace recessed box shadow
+      drawSoftAOBox(48, 315, 105, 85, 0.65);
+
+      // Architectural silhouette outlines in AO so furniture & window mullions have crisp definition
+      drawArchitecturalBaseGeometry(aCtx, {
+        wallColor: 'rgba(0,0,0,0.12)',
+        sofaColor: 'rgba(0,0,0,0.22)',
+        tableColor: 'rgba(0,0,0,0.28)',
+        mullionColor: 'rgba(0,0,0,0.65)'
+      });
+
+      auxPasses.aoCanvas = aoCanvas;
+    }
+
+    // Helper that draws consistent architectural room lines, mullions, sofa & dining table silhouettes
+    function drawArchitecturalBaseGeometry(ctx, palette) {
+      ctx.save();
+      // Left fireplace architectural concrete wall
+      ctx.fillStyle = palette.wallColor;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(190, 85);
+      ctx.lineTo(190, 385);
+      ctx.lineTo(0, 445);
+      ctx.closePath();
+      ctx.fill();
+
+      // Fireplace cutout box
+      ctx.fillStyle = '#07090d';
+      ctx.fillRect(52, 315, 92, 72);
+
+      // Window Mullions (Slim black aluminum frames)
+      ctx.fillStyle = palette.mullionColor;
+      ctx.fillRect(186, 82, 658, 6);  // Top frame
+      ctx.fillRect(186, 382, 658, 5); // Bottom sill
+      ctx.fillRect(186, 82, 6, 305);  // Left frame
+      ctx.fillRect(405, 82, 5, 305);  // Mullion 1
+      ctx.fillRect(620, 82, 5, 305);  // Mullion 2
+      ctx.fillRect(838, 82, 6, 305);  // Right frame
+
+      // Midground Lounge Sofa
+      ctx.fillStyle = palette.sofaColor;
+      ctx.fillRect(215, 355, 225, 58); // Sofa base
+      ctx.fillRect(215, 338, 28, 75);  // Left armrest
+      ctx.fillRect(240, 340, 92, 20);  // Cushion 1
+      ctx.fillRect(336, 340, 95, 20);  // Cushion 2
+
+      // Foreground Dining Table & Chairs
+      ctx.fillStyle = palette.tableColor;
+      ctx.fillRect(465, 388, 360, 14); // Table top slab
+      ctx.fillRect(490, 402, 14, 108); // Left table leg
+      ctx.fillRect(782, 402, 14, 108); // Right table leg
+
+      // Dining Chairs (3 designer chairs)
+      [525, 622, 718].forEach(cx => {
+        ctx.fillRect(cx, 366, 44, 72); // Chair back & seat
+        ctx.fillRect(cx + 4, 438, 5, 65);
+        ctx.fillRect(cx + 35, 438, 5, 65);
+      });
+      ctx.restore();
+    }
+
+    function createThumbnailDataURL(sourceCanvas) {
+      const thumb = createOffscreenCanvas(128, 72);
+      const tCtx = thumb.getContext('2d');
+      tCtx.drawImage(sourceCanvas, 0, 0, 128, 72);
+      return thumb.toDataURL('image/jpeg', 0.82);
+    }
+
+    /***************************************************************************
+     * 4. WEBGL REAL-TIME LINEAR LIGHTMIX & POST-FX COMPOSITOR
+     * Combines up to 8 Light-Select textures in Linear space + AO + Z-Depth DoF +
+     * Highlight Bloom + ACES Filmic Tonemapping at 60 FPS!
+     ***************************************************************************/
+    let gl = null;
+    let glProgram = null;
+    let glTextures = {
+      lights: [],
+      depth: null,
+      ao: null
+    };
+
+    const VERTEX_SHADER_SRC = `
+      attribute vec2 a_position;
+      varying vec2 v_uv;
+      void main() {
+        v_uv = a_position * 0.5 + 0.5;
+        v_uv.y = 1.0 - v_uv.y;
+        gl_Position = vec4(a_position, 0.0, 1.0);
+      }
+    `;
+
+    const FRAGMENT_SHADER_SRC = `
+      precision highp float;
+      varying vec2 v_uv;
+
+      uniform sampler2D u_light0;
+      uniform sampler2D u_light1;
+      uniform sampler2D u_light2;
+      uniform sampler2D u_light3;
+      uniform sampler2D u_light4;
+      uniform sampler2D u_depthTex;
+      uniform sampler2D u_aoTex;
+
+      uniform vec3 u_mult0;
+      uniform vec3 u_mult1;
+      uniform vec3 u_mult2;
+      uniform vec3 u_mult3;
+      uniform vec3 u_mult4;
+
+      uniform vec2 u_texelSize;
+      uniform float u_exposureGain;
+      uniform float u_contrast;
+      uniform int u_tonemapMode; // 0=ACES, 1=AgX, 2=Reinhard, 3=Linear
+
+      uniform float u_aoStrength;
+      uniform float u_bloomStrength;
+      uniform float u_bloomThreshold;
+      uniform float u_dofFocalDist;
+      uniform float u_dofBlur;
+      uniform int u_passView; // 0=Beauty, 1=Depth, 2=AO, 3=Bloom
+
+      // Convert sRGB texture sample to Linear space
+      vec3 srgbToLinear(vec3 c) {
+        return pow(max(c, vec3(0.0)), vec3(2.2));
+      }
+
+      // Convert Linear space back to sRGB for display
+      vec3 linearToSrgb(vec3 c) {
+        return pow(max(c, vec3(0.0)), vec3(1.0 / 2.2));
+      }
+
+      // Evaluate combined linear light at arbitrary UV coordinate
+      vec3 sampleLinearLightMix(vec2 uv) {
+        vec3 sum = vec3(0.0);
+        sum += srgbToLinear(texture2D(u_light0, uv).rgb) * u_mult0;
+        sum += srgbToLinear(texture2D(u_light1, uv).rgb) * u_mult1;
+        sum += srgbToLinear(texture2D(u_light2, uv).rgb) * u_mult2;
+        sum += srgbToLinear(texture2D(u_light3, uv).rgb) * u_mult3;
+        sum += srgbToLinear(texture2D(u_light4, uv).rgb) * u_mult4;
+        return sum;
+      }
+
+      // ACES Filmic Tonemapping Curve (Narkowicz approximation)
+      vec3 acesTonemap(vec3 x) {
+        float a = 2.51;
+        float b = 0.03;
+        float c = 2.43;
+        float d = 0.59;
+        float e = 0.14;
+        return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+      }
+
+      // AgX-inspired Punchy Filmic Curve
+      vec3 agxTonemap(vec3 x) {
+        vec3 mapped = x / (x + vec3(0.55));
+        return pow(clamp(mapped * 1.12, 0.0, 1.0), vec3(0.95));
+      }
+
+      void main() {
+        float depth = texture2D(u_depthTex, v_uv).r;
+        float aoRaw = texture2D(u_aoTex, v_uv).r;
+
+        // Pass Inspection overrides
+        if (u_passView == 1) {
+          gl_FragColor = vec4(vec3(depth), 1.0);
+          return;
+        }
+        if (u_passView == 2) {
+          float aoVis = mix(1.0, aoRaw, u_aoStrength);
+          gl_FragColor = vec4(vec3(aoVis), 1.0);
+          return;
+        }
+
+        // 1. Sample Base Linear LightMix (with Z-Depth Bokeh DoF if active)
+        vec3 linearColor = sampleLinearLightMix(v_uv);
+
+        if (u_dofBlur > 0.005) {
+          float coc = clamp(abs(depth - u_dofFocalDist) * 2.4, 0.0, 1.0);
+          float blurRadius = coc * u_dofBlur * 9.5;
+          if (blurRadius > 0.25) {
+            vec3 dofAccum = linearColor * 0.20;
+            // 8-tap Golden-Angle Bokeh Disc Kernel
+            vec2 o1 = vec2( 1.0,  0.0) * u_texelSize * blurRadius;
+            vec2 o2 = vec2(-1.0,  0.0) * u_texelSize * blurRadius;
+            vec2 o3 = vec2( 0.0,  1.0) * u_texelSize * blurRadius;
+            vec2 o4 = vec2( 0.0, -1.0) * u_texelSize * blurRadius;
+            vec2 o5 = vec2( 0.707,  0.707) * u_texelSize * blurRadius;
+            vec2 o6 = vec2(-0.707,  0.707) * u_texelSize * blurRadius;
+            vec2 o7 = vec2( 0.707, -0.707) * u_texelSize * blurRadius;
+            vec2 o8 = vec2(-0.707, -0.707) * u_texelSize * blurRadius;
+
+            dofAccum += sampleLinearLightMix(v_uv + o1) * 0.10;
+            dofAccum += sampleLinearLightMix(v_uv + o2) * 0.10;
+            dofAccum += sampleLinearLightMix(v_uv + o3) * 0.10;
+            dofAccum += sampleLinearLightMix(v_uv + o4) * 0.10;
+            dofAccum += sampleLinearLightMix(v_uv + o5) * 0.10;
+            dofAccum += sampleLinearLightMix(v_uv + o6) * 0.10;
+            dofAccum += sampleLinearLightMix(v_uv + o7) * 0.10;
+            dofAccum += sampleLinearLightMix(v_uv + o8) * 0.10;
+            linearColor = dofAccum;
+          }
+        }
+
+        // 2. Highlight Bloom / Glare Neighborhood Convolution
+        vec3 bloomAccum = vec3(0.0);
+        if (u_bloomStrength > 0.005 || u_passView == 3) {
+          for (int x = -2; x <= 2; x++) {
+            for (int y = -2; y <= 2; y++) {
+              vec2 bUv = v_uv + vec2(float(x), float(y)) * u_texelSize * 5.5;
+              vec3 s = sampleLinearLightMix(bUv);
+              float lum = dot(s, vec3(0.2126, 0.7152, 0.0722));
+              float weight = max(0.0, lum - u_bloomThreshold);
+              bloomAccum += s * (weight / (1.0 + weight));
+            }
+          }
+          bloomAccum /= 25.0;
+        }
+
+        if (u_passView == 3) {
+          gl_FragColor = vec4(linearToSrgb(bloomAccum * 2.5), 1.0);
+          return;
+        }
+
+        // Combine Bloom & Ambient Occlusion
+        linearColor += bloomAccum * u_bloomStrength * 1.65;
+        float aoFactor = mix(1.0, aoRaw, u_aoStrength);
+        linearColor *= aoFactor;
+
+        // 3. Master Exposure
+        linearColor *= u_exposureGain;
+
+        // 4. Tonemapping Curve
+        vec3 mapped = linearColor;
+        if (u_tonemapMode == 0) {
+          mapped = acesTonemap(linearColor);
+        } else if (u_tonemapMode == 1) {
+          mapped = agxTonemap(linearColor);
+        } else if (u_tonemapMode == 2) {
+          mapped = linearColor / (vec3(1.0) + linearColor);
+        } else {
+          mapped = clamp(linearColor, 0.0, 1.0);
+        }
+
+        // 5. Convert to sRGB & Apply Film Contrast
+        vec3 outSrgb = linearToSrgb(mapped);
+        outSrgb = clamp((outSrgb - 0.5) * u_contrast + 0.5, 0.0, 1.0);
+
+        gl_FragColor = vec4(outSrgb, 1.0);
+      }
+    `;
+
+    function initWebGLCompositor() {
+      const canvas = document.getElementById('relightCanvas');
+      gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
+      if (!gl) {
+        console.warn('WebGL fallback needed');
+        return;
+      }
+
+      const vs = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER_SRC);
+      const fs = compileShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER_SRC);
+      glProgram = gl.createProgram();
+      gl.attachShader(glProgram, vs);
+      gl.attachShader(glProgram, fs);
+      gl.linkProgram(glProgram);
+      gl.useProgram(glProgram);
+
+      // Fullscreen Quad Geometry
+      const quadBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
+        gl.STATIC_DRAW
+      );
+
+      const posLoc = gl.getAttribLocation(glProgram, 'a_position');
+      gl.enableVertexAttribArray(posLoc);
+      gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+      uploadAllTexturesToGPU();
+    }
+
+    function compileShader(gl, type, source) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, source);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error('Shader error:', gl.getShaderInfoLog(s));
+      }
+      return s;
+    }
+
+    function createOrUpdateTexture(existingTex, sourceCanvas) {
+      const tex = existingTex || gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
+      return tex;
+    }
+
+    function uploadAllTexturesToGPU() {
+      if (!gl) return;
+      for (let i = 0; i < 5; i++) {
+        const layer = lightLayers[i];
+        const src = layer && layer.canvas ? layer.canvas : createOffscreenCanvas();
+        glTextures.lights[i] = createOrUpdateTexture(glTextures.lights[i], src);
+      }
+      glTextures.depth = createOrUpdateTexture(glTextures.depth, auxPasses.depthCanvas);
+      glTextures.ao = createOrUpdateTexture(glTextures.ao, auxPasses.aoCanvas);
+    }
+
+    // Converts Hex color string to normalized RGB [0..1]
+    function hexToRgbNorm(hex) {
+      const clean = hex.replace('#', '');
+      const num = parseInt(clean, 16);
+      return [((num >> 16) & 255) / 255, ((num >> 8) & 255) / 255, (num & 255) / 255];
+    }
+
+    // Compute final RGB multiplier for a light layer (accounting for Active, Solo, Intensity, Kelvin/Custom Color)
+    function getLayerLinearMultiplier(layer, anySoloActive) {
+      if (holdingOriginalCompare) {
+        return [1.0, 1.0, 1.0];
+      }
+      if (!layer) return [0.0, 0.0, 0.0];
+      if (anySoloActive && !layer.solo) return [0.0, 0.0, 0.0];
+      if (!anySoloActive && !layer.active) return [0.0, 0.0, 0.0];
+
+      let tint = [1.0, 1.0, 1.0];
+      if (layer.useCustomColor) {
+        tint = hexToRgbNorm(layer.customColorHex);
+      } else {
+        const kEntry = KELVIN_OPTIONS.find(k => k.value === layer.kelvinKey) || KELVIN_OPTIONS[0];
+        tint = kEntry.rgb;
+      }
+
+      return [
+        tint[0] * layer.intensity,
+        tint[1] * layer.intensity,
+        tint[2] * layer.intensity
+      ];
+    }
+
+    // Main Render Pass Execution
+    function renderRelightFrame() {
+      if (!gl || !glProgram) return;
+
+      const canvas = document.getElementById('relightCanvas');
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.useProgram(glProgram);
+
+      const anySolo = lightLayers.some(l => l.solo);
+
+      // Bind 5 Light Textures & their Linear Multipliers
+      for (let i = 0; i < 5; i++) {
+        gl.activeTexture(gl.TEXTURE0 + i);
+        gl.bindTexture(gl.TEXTURE_2D, glTextures.lights[i]);
+        gl.uniform1i(gl.getUniformLocation(glProgram, `u_light${i}`), i);
+
+        const mult = getLayerLinearMultiplier(lightLayers[i], anySolo);
+        gl.uniform3fv(gl.getUniformLocation(glProgram, `u_mult${i}`), mult);
+      }
+
+      // Bind Depth & AO Textures
+      gl.activeTexture(gl.TEXTURE5);
+      gl.bindTexture(gl.TEXTURE_2D, glTextures.depth);
+      gl.uniform1i(gl.getUniformLocation(glProgram, 'u_depthTex'), 5);
+
+      gl.activeTexture(gl.TEXTURE6);
+      gl.bindTexture(gl.TEXTURE_2D, glTextures.ao);
+      gl.uniform1i(gl.getUniformLocation(glProgram, 'u_aoTex'), 6);
+
+      // Uniforms for Post-FX
+      gl.uniform2f(gl.getUniformLocation(glProgram, 'u_texelSize'), 1.0 / canvas.width, 1.0 / canvas.height);
+
+      const evGain = holdingOriginalCompare ? 1.0 : Math.pow(2.0, postFX.exposure);
+      gl.uniform1f(gl.getUniformLocation(glProgram, 'u_exposureGain'), evGain);
+      gl.uniform1f(gl.getUniformLocation(glProgram, 'u_contrast'), holdingOriginalCompare ? 1.0 : postFX.contrast);
+
+      const tmMap = { aces: 0, agx: 1, reinhard: 2, linear: 3 };
+      gl.uniform1i(gl.getUniformLocation(glProgram, 'u_tonemapMode'), tmMap[postFX.tonemap] ?? 0);
+
+      gl.uniform1f(gl.getUniformLocation(glProgram, 'u_aoStrength'), postFX.aoEnabled ? postFX.aoStrength : 0.0);
+      gl.uniform1f(gl.getUniformLocation(glProgram, 'u_bloomStrength'), postFX.bloomEnabled ? postFX.bloomStrength : 0.0);
+      gl.uniform1f(gl.getUniformLocation(glProgram, 'u_bloomThreshold'), postFX.bloomThreshold);
+
+      gl.uniform1f(gl.getUniformLocation(glProgram, 'u_dofFocalDist'), postFX.dofFocalDist);
+      gl.uniform1f(gl.getUniformLocation(glProgram, 'u_dofBlur'), postFX.dofEnabled ? postFX.dofBlur : 0.0);
+
+      const viewMap = { beauty: 0, depth: 1, ao: 2, bloom: 3 };
+      gl.uniform1i(gl.getUniformLocation(glProgram, 'u_passView'), viewMap[currentPassView] ?? 0);
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
+    /***************************************************************************
+     * 5. INDIGO-STYLE LIGHT LAYER INSPECTOR UI BUILDER
+     ***************************************************************************/
+    function renderLightLayersUI() {
+      const container = document.getElementById('lightLayersList');
+      const anySolo = lightLayers.some(l => l.solo);
+
+      // Toggle Solo Header Badges
+      document.getElementById('soloActiveBadge').classList.toggle('hidden', !anySolo);
+      document.getElementById('clearSoloBtn').classList.toggle('hidden', !anySolo);
+
+      container.innerHTML = lightLayers.slice(0, 5).map((layer, index) => {
+        const isEffectiveOn = anySolo ? layer.solo : layer.active;
+        const pct = Math.round(layer.intensity * 100);
+        const kelvinObj = KELVIN_OPTIONS.find(k => k.value === layer.kelvinKey) || KELVIN_OPTIONS[0];
+        const swatchColor = layer.useCustomColor ? layer.customColorHex : kelvinObj.hex;
+
+        return `
+          <div class="p-3 rounded-xl bg-studio-card border ${layer.solo ? 'border-amber-500 shadow-lg shadow-amber-500/10' : 'border-studio-border'} transition-all ${!isEffectiveOn ? 'opacity-55' : ''}">
+            
+            <!-- Top Row: Power Toggle, Solo Button, Thumbnail, Layer Name, Custom File Upload -->
+            <div class="flex items-center justify-between gap-2 mb-2.5">
+              <div class="flex items-center gap-2 min-w-0">
+                <!-- Power / Active Toggle Button -->
+                <button
+                  onclick="toggleLayerActive(${index})"
+                  title="${layer.active ? 'Lichtquelle deaktivieren (Mute)' : 'Lichtquelle aktivieren'}"
+                  class="w-7 h-7 rounded-lg flex items-center justify-center border transition ${layer.active ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25' : 'bg-studio-bg border-studio-border text-slate-500 hover:text-slate-300'}">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v9m6.364-5.364a9 9 0 11-12.728 0" />
+                  </svg>
+                </button>
+
+                <!-- Solo Button ("S") -->
+                <button
+                  onclick="toggleLayerSolo(${index})"
+                  title="Solo-Modus: Nur diese Lichtquelle isoliert betrachten"
+                  class="w-7 h-7 rounded-lg font-mono text-xs font-bold border transition ${layer.solo ? 'bg-amber-500 border-amber-400 text-slate-950 shadow shadow-amber-500/40' : 'bg-studio-bg border-studio-border text-slate-400 hover:text-white'}">
+                  S
+                </button>
+
+                <!-- Render Pass Mini Thumbnail -->
+                <div class="w-11 h-7 rounded bg-black border border-studio-border overflow-hidden flex-shrink-0 relative">
+                  <img src="${layer.thumbUrl}" alt="${layer.name}" class="w-full h-full object-cover" />
+                </div>
+
+                <!-- Layer Title -->
+                <span class="text-xs font-semibold text-slate-100 truncate" title="${layer.name}">
+                  ${layer.name}
+                </span>
+              </div>
+
+              <!-- Upload Custom Render Pass for this Slot -->
+              <label class="cursor-pointer px-2 py-1 rounded bg-studio-bg hover:bg-slate-800 border border-studio-border text-[10px] font-mono text-slate-300 hover:text-amber-400 flex-shrink-0 transition" title="Eigenes Render-Pass Bild (PNG/JPG) für diese Lichtquelle laden">
+                <input type="file" accept="image/*" class="hidden" onchange="uploadSingleLightPass(event, ${index})" />
+                <span>📁 Pass</span>
+              </label>
+            </div>
+
+            <!-- Middle Row: Intensity Slider (0% - 300%) -->
+            <div class="space-y-1 mb-2.5">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="text-slate-400">Intensität (Linear Gain)</span>
+                <span id="layer-int-label-${index}" class="font-mono font-semibold text-amber-400">${pct}% (${layer.intensity.toFixed(2)})</span>
+              </div>
+              <input
+                type="range"
+                id="layer-int-slider-${index}"
+                min="0"
+                max="3.0"
+                step="0.02"
+                value="${layer.intensity}"
+                oninput="onLayerIntensityInput(${index}, this.value)"
+                ondblclick="onLayerIntensityInput(${index}, 1.0)"
+                class="studio-slider"
+              />
+            </div>
+
+            <!-- Bottom Row: Kelvin Color Temperature Dropdown + Custom Tint Picker -->
+            <div class="flex items-center gap-2">
+              <div class="flex-1">
+                <select
+                  id="layer-kelvin-select-${index}"
+                  onchange="onLayerKelvinChange(${index}, this.value)"
+                  class="w-full bg-studio-bg border border-studio-border rounded-lg px-2.5 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer">
+                  ${KELVIN_OPTIONS.map(k => `
+                    <option value="${k.value}" ${(!layer.useCustomColor && layer.kelvinKey === k.value) ? 'selected' : ''}>
+                      ${k.label}
+                    </option>
+                  `).join('')}
+                  ${layer.useCustomColor ? `<option value="custom" selected>🎨 Eigene Lichtfarbe (${layer.customColorHex})</option>` : ''}
+                </select>
+              </div>
+
+              <!-- Live Color Swatch / Custom Tint Picker -->
+              <label class="relative w-7 h-7 rounded-lg border border-studio-border overflow-hidden cursor-pointer flex-shrink-0 shadow-inner" style="background-color: ${swatchColor};" title="Individuelle Lichtfarbe wählen">
+                <input
+                  type="color"
+                  value="${swatchColor}"
+                  oninput="onLayerCustomColorInput(${index}, this.value)"
+                  class="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                />
+              </label>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+
+      updateConfigJSONTextarea();
+    }
+
+    /***************************************************************************
+     * 6. INTERACTIVE LAYER & POST-FX EVENT HANDLERS
+     ***************************************************************************/
+    function pauseAutoDemoOnUserAction() {
+      if (autoDemoActive) {
+        autoDemoActive = false;
+        updateAutoDemoButtonUI();
+      }
+    }
+
+    function toggleLayerActive(index) {
+      pauseAutoDemoOnUserAction();
+      lightLayers[index].active = !lightLayers[index].active;
+      renderLightLayersUI();
+      renderRelightFrame();
+    }
+
+    function toggleLayerSolo(index) {
+      pauseAutoDemoOnUserAction();
+      lightLayers[index].solo = !lightLayers[index].solo;
+      renderLightLayersUI();
+      renderRelightFrame();
+    }
+
+    function clearAllSolos() {
+      pauseAutoDemoOnUserAction();
+      lightLayers.forEach(l => l.solo = false);
+      renderLightLayersUI();
+      renderRelightFrame();
+    }
+
+    function onLayerIntensityInput(index, val) {
+      pauseAutoDemoOnUserAction();
+      const num = parseFloat(val);
+      lightLayers[index].intensity = num;
+
+      const labelEl = document.getElementById(`layer-int-label-${index}`);
+      if (labelEl) {
+        labelEl.textContent = `${Math.round(num * 100)}% (${num.toFixed(2)})`;
+      }
+      const sliderEl = document.getElementById(`layer-int-slider-${index}`);
+      if (sliderEl && parseFloat(sliderEl.value) !== num) {
+        sliderEl.value = num;
+      }
+
+      renderRelightFrame();
+      updateConfigJSONTextarea();
+    }
+
+    function onLayerKelvinChange(index, kelvinKey) {
+      pauseAutoDemoOnUserAction();
+      if (kelvinKey === 'custom') return;
+      lightLayers[index].kelvinKey = kelvinKey;
+      lightLayers[index].useCustomColor = false;
+      renderLightLayersUI();
+      renderRelightFrame();
+    }
+
+    function onLayerCustomColorInput(index, hexVal) {
+      pauseAutoDemoOnUserAction();
+      lightLayers[index].customColorHex = hexVal;
+      lightLayers[index].useCustomColor = true;
+      renderLightLayersUI();
+      renderRelightFrame();
+    }
+
+    function onUserPostFXChange() {
+      pauseAutoDemoOnUserAction();
+      syncPostFXFromDOM();
+      renderRelightFrame();
+      updateConfigJSONTextarea();
+    }
+
+    function syncPostFXFromDOM() {
+      postFX.tonemap = document.getElementById('tonemapSelect').value;
+      postFX.exposure = parseFloat(document.getElementById('exposureSlider').value);
+      postFX.contrast = parseFloat(document.getElementById('contrastSlider').value);
+      postFX.bloomEnabled = document.getElementById('bloomToggle').checked;
+      postFX.bloomStrength = parseFloat(document.getElementById('bloomStrengthSlider').value);
+      postFX.bloomThreshold = parseFloat(document.getElementById('bloomThresholdSlider').value);
+      postFX.dofEnabled = document.getElementById('dofToggle').checked;
+      postFX.dofFocalDist = parseFloat(document.getElementById('dofFocalSlider').value);
+      postFX.dofBlur = parseFloat(document.getElementById('dofBlurSlider').value);
+      postFX.aoEnabled = document.getElementById('aoToggle').checked;
+      postFX.aoStrength = parseFloat(document.getElementById('aoStrengthSlider').value);
+
+      updatePostFXLabels();
+    }
+
+    function updatePostFXLabels() {
+      const expSign = postFX.exposure >= 0 ? '+' : '';
+      document.getElementById('exposureValLabel').textContent = `${expSign}${postFX.exposure.toFixed(2)} EV`;
+      document.getElementById('contrastValLabel').textContent = `${Math.round(postFX.contrast * 100)}%`;
+      document.getElementById('bloomStrengthLabel').textContent = `${Math.round(postFX.bloomStrength * 100)}%`;
+      document.getElementById('bloomThresholdLabel').textContent = postFX.bloomThreshold.toFixed(2);
+
+      // Descriptive focus distance label
+      let zoneName = 'Raummitte';
+      if (postFX.dofFocalDist < 0.32) zoneName = 'Esstisch / Vordergrund';
+      else if (postFX.dofFocalDist < 0.68) zoneName = 'Sofa & Kamin';
+      else zoneName = 'Außenpool / Horizont';
+
+      const meters = (1.2 + postFX.dofFocalDist * 11.5).toFixed(1);
+      document.getElementById('dofFocalLabel').textContent = `${meters}m (${zoneName})`;
+      document.getElementById('hudFocusDist').textContent = `${meters}m (${zoneName})`;
+
+      const fStop = (1.4 + (1.0 - postFX.dofBlur) * 11.0).toFixed(1);
+      document.getElementById('dofBlurLabel').textContent = `${Math.round(postFX.dofBlur * 100)}% (f/${fStop})`;
+      document.getElementById('aoStrengthLabel').textContent = `${Math.round(postFX.aoStrength * 100)}%`;
+
+      const tmNames = { aces: 'ACES Filmic', agx: 'AgX Punchy', reinhard: 'Reinhard', linear: 'Linear sRGB' };
+      document.getElementById('hudTonemap').textContent = tmNames[postFX.tonemap] || 'ACES Filmic';
+    }
+
+    function resetPostFX() {
+      pauseAutoDemoOnUserAction();
+      document.getElementById('tonemapSelect').value = 'aces';
+      document.getElementById('exposureSlider').value = 0.0;
+      document.getElementById('contrastSlider').value = 1.0;
+      document.getElementById('bloomToggle').checked = true;
+      document.getElementById('bloomStrengthSlider').value = 0.45;
+      document.getElementById('bloomThresholdSlider').value = 0.75;
+      document.getElementById('dofToggle').checked = true;
+      document.getElementById('dofFocalSlider').value = 0.22;
+      document.getElementById('dofBlurSlider').value = 0.35;
+      document.getElementById('aoToggle').checked = true;
+      document.getElementById('aoStrengthSlider').value = 0.65;
+      syncPostFXFromDOM();
+      renderRelightFrame();
+    }
+
+    /***************************************************************************
+     * 7. CLICK-TO-FOCUS ON VIEWPORT (Inspects Z-Depth Buffer & Focuses Camera)
+     ***************************************************************************/
+    function initViewportClickToFocus() {
+      const canvas = document.getElementById('relightCanvas');
+      const reticle = document.getElementById('focusReticle');
+      const badge = document.getElementById('focusLabelBadge');
+
+      canvas.addEventListener('click', (e) => {
+        pauseAutoDemoOnUserAction();
+
+        const rect = canvas.getBoundingClientRect();
+        const normX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const normY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+
+        // Sample Z-Depth value at clicked pixel
+        let sampledDepth = 0.25;
+        if (auxPasses.depthPixelData) {
+          const px = Math.min(canvas.width - 1, Math.floor(normX * canvas.width));
+          const py = Math.min(canvas.height - 1, Math.floor(normY * canvas.height));
+          const idx = (py * canvas.width + px) * 4;
+          sampledDepth = auxPasses.depthPixelData[idx] / 255.0;
+        }
+
+        postFX.dofFocalDist = Math.max(0.05, Math.min(0.98, sampledDepth));
+        postFX.dofEnabled = true;
+
+        // Update UI sliders
+        document.getElementById('dofToggle').checked = true;
+        document.getElementById('dofFocalSlider').value = postFX.dofFocalDist;
+        updatePostFXLabels();
+        renderRelightFrame();
+
+        // Show animated focus reticle at click position
+        reticle.style.left = `${normX * 100}%`;
+        reticle.style.top = `${normY * 100}%`;
+        const meters = (1.2 + postFX.dofFocalDist * 11.5).toFixed(1);
+        badge.textContent = `🎯 Fokus: ${meters}m`;
+
+        reticle.classList.remove('hidden', 'focus-reticle-anim');
+        void reticle.offsetWidth; // Reflow to restart animation
+        reticle.classList.add('focus-reticle-anim');
+      });
+    }
+
+    /***************************************************************************
+     * 8. PRESETS & SHOWROOM AUTO-DEMO MODE (Smooth Slider Choreography)
+     ***************************************************************************/
+    const SCENE_PRESETS = {
+      daylight: {
+        title: '☀️ Tag (Helles Architektur-Tageslicht)',
+        intensities: [1.55, 1.40, 0.15, 0.10, 0.00],
+        kelvins: ['6500', '5500', '2700', '2700', 'native'],
+        exposure: 0.10,
+        dofFocal: 0.48
+      },
+      sundowner: {
+        title: '🌅 Sundowner (Golden Hour & Pendelleuchten)',
+        intensities: [0.65, 1.85, 1.35, 1.15, 0.85],
+        kelvins: ['8000', '2700', '2700', '1800', 'native'],
+        exposure: 0.05,
+        dofFocal: 0.22
+      },
+      night: {
+        title: '🌙 Nacht-Architektur (Blaue Stunde & Pool-Glow)',
+        intensities: [0.35, 0.00, 1.65, 1.50, 2.15],
+        kelvins: ['9500', '3200', '2700', '2700', 'native'],
+        exposure: 0.15,
+        dofFocal: 0.82
+      },
+      fireplace: {
+        title: '🕯️ Kamin-Fokus (Cozy Lounge Abendstimmung)',
+        intensities: [0.18, 0.00, 0.65, 2.45, 0.70],
+        kelvins: ['8000', '2700', '1800', '1800', 'native'],
+        exposure: 0.20,
+        dofFocal: 0.48
+      },
+      reset: {
+        title: '🔄 Neutral (Alle Render-Layer 100%)',
+        intensities: [1.0, 1.0, 1.0, 1.0, 1.0],
+        kelvins: ['native', 'native', 'native', 'native', 'native'],
+        exposure: 0.0,
+        dofFocal: 0.22
+      }
+    };
+
+    function applyPreset(presetKey, stopDemo = true) {
+      if (stopDemo) pauseAutoDemoOnUserAction();
+      const p = SCENE_PRESETS[presetKey] || SCENE_PRESETS.reset;
+
+      lightLayers.forEach((layer, idx) => {
+        layer.active = true;
+        layer.solo = false;
+        layer.useCustomColor = false;
+        layer.intensity = p.intensities[idx] ?? 1.0;
+        layer.kelvinKey = p.kelvins[idx] ?? 'native';
+      });
+
+      postFX.exposure = p.exposure;
+      postFX.dofFocalDist = p.dofFocal;
+      document.getElementById('exposureSlider').value = postFX.exposure;
+      document.getElementById('dofFocalSlider').value = postFX.dofFocalDist;
+
+      updatePostFXLabels();
+      renderLightLayersUI();
+      renderRelightFrame();
+    }
+
+    function toggleAutoDemo() {
+      autoDemoActive = !autoDemoActive;
+      if (autoDemoActive) {
+        autoDemoStartTime = performance.now();
+        // Ensure all layers are active and un-soloed for the showroom choreography
+        lightLayers.forEach(l => { l.active = true; l.solo = false; l.useCustomColor = false; });
+        renderLightLayersUI();
+      }
+      updateAutoDemoButtonUI();
+    }
+
+    function updateAutoDemoButtonUI() {
+      const btn = document.getElementById('demoToggleBtn');
+      const dot = document.getElementById('demoStatusDot');
+      const label = document.getElementById('demoBtnLabel');
+      const hudBanner = document.getElementById('hudDemoBanner');
+
+      if (autoDemoActive) {
+        btn.className = 'demo-active-pill px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/50 hover:bg-amber-500/30 flex items-center gap-2 transition';
+        dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+        label.textContent = '⚡ Auto-Demo läuft (Klicken zum Übernehmen)';
+        hudBanner.classList.remove('hidden');
+      } else {
+        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-studio-card text-slate-300 border border-studio-border hover:text-white flex items-center gap-2 transition';
+        dot.className = 'w-2 h-2 rounded-full bg-slate-500';
+        label.textContent = '▶️ Auto-Demo starten';
+        hudBanner.classList.add('hidden');
+      }
+    }
+
+    // Continuous Showroom Autopilot Loop (Moves sliders & cycles through moods smoothly)
+    const DEMO_KEYFRAMES = [
+      { name: '☀️ Tageslicht & Sonne',     int: [1.50, 1.45, 0.20, 0.15, 0.10], kel: ['6500', '5500', '2700', '2700', 'native'], dof: 0.48 },
+      { name: '🌅 Golden Hour Sundowner',  int: [0.65, 2.05, 1.35, 1.15, 0.75], kel: ['8000', '2700', '2700', '1800', 'native'], dof: 0.22 },
+      { name: '🌙 Blaue Stunde & Pool',    int: [0.35, 0.00, 1.75, 1.45, 2.25], kel: ['9500', '3200', '2700', '2700', 'native'], dof: 0.82 },
+      { name: '🕯️ Kaminfeuer & Vouten-LED', int: [0.15, 0.00, 0.65, 2.55, 0.90], kel: ['8000', '2700', '1800', '1800', 'native'], dof: 0.48 }
+    ];
+
+    function runShowroomAutoDemoLoop(now) {
+      if (autoDemoActive && !holdingOriginalCompare) {
+        const cycleDuration = 4800; // 4.8 seconds per mood transition
+        const elapsed = now - autoDemoStartTime;
+        const totalPhases = DEMO_KEYFRAMES.length;
+        const rawPhase = elapsed / cycleDuration;
+        const idxA = Math.floor(rawPhase) % totalPhases;
+        const idxB = (idxA + 1) % totalPhases;
+        const tRaw = rawPhase - Math.floor(rawPhase);
+        // Smooth cosine easing
+        const t = 0.5 - 0.5 * Math.cos(tRaw * Math.PI);
+
+        const kfA = DEMO_KEYFRAMES[idxA];
+        const kfB = DEMO_KEYFRAMES[idxB];
+
+        document.getElementById('hudDemoPhaseName').textContent = t < 0.5 ? kfA.name : kfB.name;
+
+        // Interpolate each layer's intensity slider live in DOM so the user sees sliders moving!
+        for (let i = 0; i < 5; i++) {
+          const layer = lightLayers[i];
+          if (!layer) continue;
+          const lerpedInt = kfA.int[i] + (kfB.int[i] - kfA.int[i]) * t;
+          layer.intensity = lerpedInt;
+
+          // Switch Kelvin dropdown at midpoint of transition
+          const targetKelvin = t < 0.5 ? kfA.kel[i] : kfB.kel[i];
+          if (layer.kelvinKey !== targetKelvin) {
+            layer.kelvinKey = targetKelvin;
+            const sel = document.getElementById(`layer-kelvin-select-${i}`);
+            if (sel) sel.value = targetKelvin;
+          }
+
+          // Update DOM slider & numeric readout directly for 60fps smoothness
+          const slider = document.getElementById(`layer-int-slider-${i}`);
+          const label = document.getElementById(`layer-int-label-${i}`);
+          if (slider) slider.value = lerpedInt;
+          if (label) label.textContent = `${Math.round(lerpedInt * 100)}% (${lerpedInt.toFixed(2)})`;
+        }
+
+        // Smoothly animate DoF Focal Distance too
+        postFX.dofFocalDist = kfA.dof + (kfB.dof - kfA.dof) * t;
+        const dofSlider = document.getElementById('dofFocalSlider');
+        if (dofSlider) dofSlider.value = postFX.dofFocalDist;
+        updatePostFXLabels();
+
+        renderRelightFrame();
+      }
+
+      animFrameId = requestAnimationFrame(runShowroomAutoDemoLoop);
+    }
+
+    /***************************************************************************
+     * 9. CUSTOM RENDER PASS UPLOAD (Per-Layer & Batch Drag-and-Drop)
+     ***************************************************************************/
+    function loadFileIntoCanvas(file, callback) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const c = createOffscreenCanvas(img.width, img.height);
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          callback(c, file.name);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function uploadSingleLightPass(event, layerIndex) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      pauseAutoDemoOnUserAction();
+
+      loadFileIntoCanvas(file, (newCanvas, fileName) => {
+        resizeViewportIfNeeded(newCanvas.width, newCanvas.height);
+        const cleanName = fileName.replace(/\.[^/.]+$/, '');
+        lightLayers[layerIndex].name = cleanName;
+        lightLayers[layerIndex].canvas = newCanvas;
+        lightLayers[layerIndex].thumbUrl = createThumbnailDataURL(newCanvas);
+        lightLayers[layerIndex].active = true;
+
+        uploadAllTexturesToGPU();
+        renderLightLayersUI();
+        renderRelightFrame();
+      });
+    }
+
+    function uploadAuxChannel(event, type) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      pauseAutoDemoOnUserAction();
+
+      loadFileIntoCanvas(file, (newCanvas, fileName) => {
+        if (type === 'depth') {
+          auxPasses.depthCanvas = newCanvas;
+          auxPasses.depthPixelData = newCanvas.getContext('2d').getImageData(0, 0, newCanvas.width, newCanvas.height).data;
+        } else if (type === 'ao') {
+          auxPasses.aoCanvas = newCanvas;
+        }
+        uploadAllTexturesToGPU();
+        renderRelightFrame();
+      });
+    }
+
+    function handleBatchPassUpload(event) {
+      const files = Array.from(event.target.files || []);
+      if (!files.length) return;
+      processDroppedOrSelectedFiles(files);
+    }
+
+    function processDroppedOrSelectedFiles(files) {
+      pauseAutoDemoOnUserAction();
+      let lightSlotIdx = 0;
+
+      files.forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+        const lower = file.name.toLowerCase();
+
+        loadFileIntoCanvas(file, (newCanvas, fileName) => {
+          resizeViewportIfNeeded(newCanvas.width, newCanvas.height);
+
+          if (lower.includes('depth') || lower.includes('zdepth') || lower.includes('z-depth')) {
+            auxPasses.depthCanvas = newCanvas;
+            auxPasses.depthPixelData = newCanvas.getContext('2d').getImageData(0, 0, newCanvas.width, newCanvas.height).data;
+          } else if (lower.includes('_ao') || lower.includes('occlusion') || lower.startsWith('ao')) {
+            auxPasses.aoCanvas = newCanvas;
+          } else if (lightSlotIdx < 5) {
+            const targetIdx = lightSlotIdx++;
+            lightLayers[targetIdx].name = fileName.replace(/\.[^/.]+$/, '');
+            lightLayers[targetIdx].canvas = newCanvas;
+            lightLayers[targetIdx].thumbUrl = createThumbnailDataURL(newCanvas);
+            lightLayers[targetIdx].active = true;
+            lightLayers[targetIdx].intensity = 1.0;
+          }
+
+          document.getElementById('hudSceneTitle').textContent = `Custom Render-Szene (${files.length} Passes geladen)`;
+          uploadAllTexturesToGPU();
+          renderLightLayersUI();
+          renderRelightFrame();
+        });
+      });
+    }
+
+    function resizeViewportIfNeeded(w, h) {
+      const canvas = document.getElementById('relightCanvas');
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+        document.getElementById('hudRes').textContent = `${w}×${h}`;
+      }
+    }
+
+    function addNewEmptyLightSlot() {
+      pauseAutoDemoOnUserAction();
+      // Triggers file selector for the last slot so users can immediately pick a render pass
+      const input = document.getElementById('multiPassUploadInput');
+      if (input) input.click();
+    }
+
+    function regenerateDemoScene() {
+      pauseAutoDemoOnUserAction();
+      resizeViewportIfNeeded(RENDER_WIDTH, RENDER_HEIGHT);
+      generateProceduralArchvizPasses();
+      uploadAllTexturesToGPU();
+      applyPreset('sundowner', true);
+      document.getElementById('hudSceneTitle').textContent = 'Szene: Villa Penthouse (5 Light-Selects + Z-Depth + AO)';
+    }
+
+    // Setup Drag & Drop on Viewport
+    function initDragAndDropZone() {
+      const vp = document.getElementById('viewportContainer');
+      const overlay = document.getElementById('dropZoneOverlay');
+
+      window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        overlay.classList.remove('opacity-0');
+      });
+
+      window.addEventListener('dragleave', (e) => {
+        if (e.relatedTarget === null) {
+          overlay.classList.add('opacity-0');
+        }
+      });
+
+      window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        overlay.classList.add('opacity-0');
+        if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+          processDroppedOrSelectedFiles(Array.from(e.dataTransfer.files));
+        }
+      });
+    }
+
+    /***************************************************************************
+     * 10. VIEWPORT PASS MODES, EXPORT PNG, TABS & EMBED SNIPPET COPY
+     ***************************************************************************/
+    function setRenderPassView(mode) {
+      currentPassView = mode;
+      ['beauty', 'depth', 'ao', 'bloom'].forEach(m => {
+        const btn = document.getElementById(`view-${m}`);
+        if (m === mode) {
+          btn.className = 'pass-view-btn px-2.5 py-1 rounded text-[11px] font-medium bg-amber-500 text-slate-950 font-semibold transition';
+        } else {
+          btn.className = 'pass-view-btn px-2.5 py-1 rounded text-[11px] font-medium text-slate-400 hover:text-white transition';
+        }
+      });
+      renderRelightFrame();
+    }
+
+    function setOriginalCompare(isHolding) {
+      holdingOriginalCompare = isHolding;
+      renderRelightFrame();
+    }
+
+    function switchInspectorTab(tabKey) {
+      ['lights', 'postfx', 'embed'].forEach(t => {
+        const content = document.getElementById(`tab-content-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (t === tabKey) {
+          content.classList.remove('hidden');
+          btn.className = 'inspector-tab-btn py-2 px-2 rounded-md text-xs font-semibold bg-studio-card text-amber-400 border border-studio-border shadow flex items-center justify-center gap-1.5 transition';
+        } else {
+          content.classList.add('hidden');
+          btn.className = 'inspector-tab-btn py-2 px-2 rounded-md text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center justify-center gap-1.5 transition';
+        }
+      });
+      if (tabKey === 'embed') {
+        updateConfigJSONTextarea();
+      }
+    }
+
+    function updateConfigJSONTextarea() {
+      const area = document.getElementById('jsonConfigArea');
+      if (!area) return;
+      const exportObj = {
+        generator: 'PolyLightMix by Polygon Manufaktur',
+        lights: lightLayers.map(l => ({
+          id: l.id,
+          name: l.name,
+          active: l.active,
+          intensity: Number(l.intensity.toFixed(2)),
+          kelvin: l.useCustomColor ? l.customColorHex : l.kelvinKey
+        })),
+        postFX: {
+          tonemap: postFX.tonemap,
+          exposureEV: postFX.exposure,
+          bloom: postFX.bloomEnabled ? postFX.bloomStrength : 0,
+          dofFocalDist: Number(postFX.dofFocalDist.toFixed(2)),
+          dofBlur: postFX.dofEnabled ? postFX.dofBlur : 0,
+          aoStrength: postFX.aoEnabled ? postFX.aoStrength : 0
+        }
+      };
+      area.value = JSON.stringify(exportObj, null, 2);
+    }
+
+    function copySnippet(textareaId, feedbackSpanId) {
+      const area = document.getElementById(textareaId);
+      area.select();
+      document.execCommand('copy');
+      const fb = document.getElementById(feedbackSpanId);
+      const oldText = fb.textContent;
+      fb.textContent = '✅ Kopiert!';
+      setTimeout(() => { fb.textContent = oldText; }, 1800);
+    }
+
+    function exportCurrentConfigJSON() {
+      updateConfigJSONTextarea();
+      copySnippet('jsonConfigArea', 'copyJsonFeedback');
+    }
+
+    function exportBeautyPNG() {
+      renderRelightFrame();
+      const canvas = document.getElementById('relightCanvas');
+      const link = document.createElement('a');
+      link.download = `PolyLightMix-Render-${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    /***************************************************************************
+     * 11. INITIALIZATION ON WINDOW LOAD
+     ***************************************************************************/
+    window.onload = function () {
+      // 1. Generate built-in 5-layer Architectural Demo Scene + Z-Depth + AO
+      generateProceduralArchvizPasses();
+
+      // 2. Initialize WebGL Linear Relight Shader Pipeline
+      initWebGLCompositor();
+
+      // 3. Build Indigo-style Light Layer Cards & Post-FX Labels
+      renderLightLayersUI();
+      updatePostFXLabels();
+
+      // 4. Enable Click-to-Focus on Viewport & Drag-and-Drop Upload
+      initViewportClickToFocus();
+      initDragAndDropZone();
+
+      // 5. Render initial frame & start Showroom Auto-Demo loop
+      renderRelightFrame();
+      requestAnimationFrame(runShowroomAutoDemoLoop);
+    };
+  </script>
+</body>
+</html>
